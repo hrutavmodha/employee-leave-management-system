@@ -9,7 +9,8 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 ### 1. Authentication & Role-Based Access Control (RBAC)
 - **Multi-Role Support:** Distinct interfaces and permissions for **Employees**, **Managers**, and **HR/Admins**.
 - **Secure Access:** Built-in protection against unauthorized actions via custom Middleware.
-- **Privacy Focused:** Minimal data exposure on public UI elements (e.g., masked emails in navigation).
+- **Theme Support:** Fully integrated **Light/Dark Mode** with persistent user preference and system-sync.
+- **Privacy Focused:** Minimal data exposure on public UI elements (e.g., role-based navbar masking).
 
 ### 2. Employee Management
 - **Organizational Hierarchy:** Manage departments and reporting structures (Manager-Subordinate relationships).
@@ -68,10 +69,8 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
    ```
 
 3. **Environment Setup:**
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
+   - Copy `.env.example` to `.env` and run `php artisan key:generate`.
+   - **Real Emails:** To receive actual notifications, set `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=465`, and `MAIL_ENCRYPTION=ssl` in your `.env` file using a Google App Password.
 
 4. **Database Initialization:**
    ```bash
@@ -80,14 +79,10 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
    ```
 
 5. **Run the Application:**
-   *Terminal 1 (Backend):*
    ```bash
-   php artisan serve
+   ./run.sh
    ```
-   *Terminal 2 (Frontend):*
-   ```bash
-   npm run dev
-   ```
+   *(Automatically starts Backend & Frontend servers and opens the application in your default browser at the local network IP for responsiveness testing.)*
 
 ---
 

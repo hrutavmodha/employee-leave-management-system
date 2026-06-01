@@ -12,18 +12,28 @@ cleanup() {
 # Trap SIGINT (Ctrl+C) and call cleanup
 trap cleanup SIGINT
 
-echo "Starting Laravel Development Server..."
+IP_ADDR="10.50.15.110"
+URL="http://$IP_ADDR:8000"
+
+echo "Starting Laravel Development Server (Backend)..."
 php artisan serve --host=0.0.0.0 &
 SERVE_PID=$!
 
-echo "Starting Vite Development Server..."
+echo "Starting Vite Development Server (Frontend)..."
 npm run dev -- --host &
 VITE_PID=$!
 
+# Small delay to let servers start
+sleep 2
+
 echo "------------------------------------------------"
-echo "ELMS is running at: http://10.50.15.110:8000"
+echo "ELMS is running at: $URL"
+echo "Opening browser at $URL"
 echo "Press Ctrl+C to stop both servers."
 echo "------------------------------------------------"
+
+# Open browser (Linux command)
+xdg-open $URL 2>/dev/null || echo "Please open $URL in your browser manually."
 
 # Wait for background processes
 wait
