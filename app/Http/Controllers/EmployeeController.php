@@ -4,12 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Department;
+use App\Services\LeaveCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 
 class EmployeeController extends Controller
 {
+    protected $calculationService;
+
+    public function __construct(LeaveCalculationService $calculationService)
+    {
+        $this->calculationService = $calculationService;
+    }
+
     /**
      * Display a listing of employees.
      */
@@ -46,7 +54,7 @@ class EmployeeController extends Controller
             'joining_date' => ['required', 'date'],
         ]);
 
-        User::create([
+        $user = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
@@ -59,6 +67,9 @@ class EmployeeController extends Controller
             'status' => 'Active',
         ]);
 
-        return redirect()->route('employees.index')->with('success', 'Employee created successfully.');
+        // Automatically initialize leave balances for the new employee
+        $this->calculationService->initializeBalances($user);
+
+        return redirect()->route('employees.index')->with('success', 'Employee created and leave balances initialized.');
     }
 }

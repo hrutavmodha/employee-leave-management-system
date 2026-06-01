@@ -20,12 +20,21 @@
                         {{ __('My Leaves') }}
                     </x-nav-link>
 
+                    @if(Auth::user()->isManager() || Auth::user()->isAdmin())
+                    <x-nav-link :href="route('approvals.index')" :active="request()->routeIs('approvals.*')">
+                        {{ __('Pending Approvals') }}
+                    </x-nav-link>
+                    @endif
+
                     @if(Auth::user()->isAdmin())
                     <x-nav-link :href="route('employees.index')" :active="request()->routeIs('employees.*')">
                         {{ __('Employees') }}
                     </x-nav-link>
                     <x-nav-link :href="route('leave-types.index')" :active="request()->routeIs('leave-types.*')">
                         {{ __('Leave Types') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
+                        {{ __('Reports') }}
                     </x-nav-link>
                     @endif
                 </div>
