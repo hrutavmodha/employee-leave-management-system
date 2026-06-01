@@ -8,11 +8,29 @@ use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('dashboard');
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $user = Auth::user();
+    $stats = [
+        'remaining' => $user->leaveBalances()->sum('remaining_days'),
+        'pending' => $user->leaveRequests()->where('status', 'Pending')->count(),
+        'approved' => $user->leaveRequests()->where('status', 'Approved')->count(),
+    ];
+
+    $pendingApprovals = 0;
+    if ($user->isManager() || $user->isAdmin()) {
+        if ($user->isAdmin()) {
+            $pendingApprovals = \App\Models\LeaveRequest::where('status', 'Pending')->count();
+        } else {
+            $pendingApprovals = \App\Models\LeaveRequest::whereHas('user', function($q) use ($user) {
+                $q->where('manager_id', $user->id);
+            })->where('status', 'Pending')->count();
+        }
+    }
+
+    return view('dashboard', compact('stats', 'pendingApprovals'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
