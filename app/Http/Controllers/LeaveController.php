@@ -4,33 +4,35 @@ namespace App\Http\Controllers;
 
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\LeaveBalance;
+use App\Services\LeaveCalculationService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class LeaveController extends Controller
 {
-    /**
-     * Display a listing of the user's leave requests.
-     */
+    protected $calculationService;
+
+    public function __construct(LeaveCalculationService $calculationService)
+    {
+        $this->calculationService = $calculationService;
+    }
+
     public function index()
     {
         $requests = Auth::user()->leaveRequests()->with('leaveType')->latest()->get();
         return view('leaves.index', compact('requests'));
     }
 
-    /**
-     * Show the form for creating a new leave request.
-     */
     public function create()
     {
         $leaveTypes = LeaveType::all();
-        return view('leaves.create', compact('leaveTypes'));
+        // Only show current year balances to avoid confusion
+        $balances = Auth::user()->leaveBalances()->where('year', date('Y'))->with('leaveType')->get();
+        return view('leaves.create', compact('leaveTypes', 'balances'));
     }
 
-    /**
-     * Store a newly created leave request in storage.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -41,11 +43,17 @@ class LeaveController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
         ]);
 
-        $start = Carbon::parse($request->start_date);
-        $end = Carbon::parse($request->end_date);
-        
-        // Calculate total days (including both start and end date)
+        $start = Carbon::parse($request->start_date)->startOfDay();
+        $end = Carbon::parse($request->end_date)->startOfDay();
         $daysRequested = $start->diffInDays($end) + 1;
+        $year = $start->year;
+
+        // Use the Service to get or create the balance record
+        $balance = $this->calculationService->getOrCreateBalance(Auth::user(), $request->leave_type_id, $year);
+
+        if ($balance->remaining_days < $daysRequested) {
+            return back()->withErrors(['end_date' => "Insufficient balance: You only have {$balance->remaining_days} days left for the year {$year}, but you requested {$daysRequested} days."])->withInput();
+        }
 
         $leaveRequest = LeaveRequest::create([
             'user_id' => Auth::id(),
@@ -57,7 +65,6 @@ class LeaveController extends Controller
             'status' => 'Pending',
         ]);
 
-        // Handle Attachment if exists
         if ($request->hasFile('attachment')) {
             $path = $request->file('attachment')->store('attachments', 'public');
             $leaveRequest->attachments()->create([
@@ -66,25 +73,13 @@ class LeaveController extends Controller
             ]);
         }
 
-        return redirect()->route('leaves.index')->with('success', "Leave request for {$daysRequested} days submitted successfully.");
+        return redirect()->route('leaves.index')->with('success', "Leave application submitted! Duration: {$daysRequested} days.");
     }
 
-    /**
-     * Cancel a pending leave request.
-     */
     public function cancel(LeaveRequest $leaveRequest)
     {
-        // Ensure the request belongs to the user and is still pending
-        if ($leaveRequest->user_id !== Auth::id()) {
-            abort(403);
-        }
-
-        if ($leaveRequest->status !== 'Pending') {
-            return redirect()->route('leaves.index')->with('error', 'Only pending requests can be cancelled.');
-        }
-
+        if ($leaveRequest->user_id !== Auth::id()) abort(403);
         $leaveRequest->update(['status' => 'Cancelled']);
-
-        return redirect()->route('leaves.index')->with('success', 'Leave request cancelled successfully.');
+        return redirect()->route('leaves.index')->with('success', 'Leave request cancelled.');
     }
 }

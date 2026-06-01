@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Services\LeaveCalculationService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -16,14 +17,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         $this->call([
             DepartmentSeeder::class,
             LeaveTypeSeeder::class,
         ]);
 
-        User::updateOrCreate(
+        $admin = User::updateOrCreate(
             ['email' => 'test@example.com'],
             [
                 'first_name' => 'Test',
@@ -32,5 +31,8 @@ class DatabaseSeeder extends Seeder
                 'role' => 'HR/Admin',
             ]
         );
+
+        // Initialize balances for the admin user so testing works immediately
+        app(LeaveCalculationService::class)->initializeBalances($admin);
     }
 }

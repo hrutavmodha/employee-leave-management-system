@@ -6,7 +6,23 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            
+            <!-- Balance Summary -->
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
+                <div class="p-6">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">My Available Balance</h3>
+                    <div class="flex flex-wrap gap-4">
+                        @foreach($balances as $bal)
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                                <div class="text-xs text-blue-600 font-bold">{{ $bal->leaveType->name }}</div>
+                                <div class="text-lg font-black text-blue-800">{{ $bal->remaining_days }} Days</div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
                 <div class="p-6 text-gray-900">
                     <form method="POST" action="{{ route('leaves.store') }}" enctype="multipart/form-data" class="space-y-6 max-w-xl">
@@ -19,7 +35,7 @@
                                 <option value="">Select Leave Type</option>
                                 @foreach($leaveTypes as $type)
                                     <option value="{{ $type->id }}" {{ old('leave_type_id') == $type->id ? 'selected' : '' }}>
-                                        {{ $type->name }} (Max: {{ $type->allowed_days }} days)
+                                        {{ $type->name }}
                                     </option>
                                 @endforeach
                             </select>

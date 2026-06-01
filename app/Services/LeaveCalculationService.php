@@ -11,19 +11,19 @@ use Exception;
 class LeaveCalculationService
 {
     /**
-     * Initialize balances for a new user based on current leave types.
+     * Initialize balances for a user for a specific year.
      */
-    public function initializeBalances(User $user)
+    public function initializeBalances(User $user, $year = null)
     {
         $leaveTypes = LeaveType::all();
-        $currentYear = date('Y');
+        $year = $year ?: date('Y');
 
         foreach ($leaveTypes as $type) {
-            LeaveBalance::updateOrCreate(
+            LeaveBalance::firstOrCreate(
                 [
                     'user_id' => $user->id,
                     'leave_type_id' => $type->id,
-                    'year' => $currentYear,
+                    'year' => $year,
                 ],
                 [
                     'allocated_days' => $type->allowed_days,
@@ -35,21 +35,40 @@ class LeaveCalculationService
     }
 
     /**
+     * Get balance for a specific type and year, auto-initializing if missing.
+     */
+    public function getOrCreateBalance(User $user, $leaveTypeId, $year)
+    {
+        $balance = LeaveBalance::where('user_id', $user->id)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('year', $year)
+            ->first();
+
+        if (!$balance) {
+            // Auto-initialize for the requested year
+            $this->initializeBalances($user, $year);
+            
+            return LeaveBalance::where('user_id', $user->id)
+                ->where('leave_type_id', $leaveTypeId)
+                ->where('year', $year)
+                ->first();
+        }
+
+        return $balance;
+    }
+
+    /**
      * Deduct days from user balance when leave is approved.
      */
     public function deductBalance(LeaveRequest $request)
     {
-        $balance = LeaveBalance::where('user_id', $request->user_id)
-            ->where('leave_type_id', $request->leave_type_id)
-            ->where('year', date('Y', strtotime($request->start_date)))
-            ->first();
+        $year = $request->start_date->year;
+        $user = $request->user;
 
-        if (!$balance) {
-            throw new Exception("Leave balance record not found for this user and leave type.");
-        }
+        $balance = $this->getOrCreateBalance($user, $request->leave_type_id, $year);
 
         if ($balance->remaining_days < $request->days_requested) {
-            throw new Exception("Insufficient leave balance.");
+            throw new Exception("Insufficient balance. User has {$balance->remaining_days} days, but requested {$request->days_requested}.");
         }
 
         $balance->used_days += $request->days_requested;

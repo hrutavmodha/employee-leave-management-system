@@ -13,8 +13,10 @@ Route::get('/', function () {
 
 Route::get('/dashboard', function () {
     $user = Auth::user();
+    $currentYear = date('Y');
+    
     $stats = [
-        'remaining' => $user->leaveBalances()->sum('remaining_days'),
+        'remaining' => $user->leaveBalances()->where('year', $currentYear)->sum('remaining_days'),
         'pending' => $user->leaveRequests()->where('status', 'Pending')->count(),
         'approved' => $user->leaveRequests()->where('status', 'Approved')->count(),
     ];
