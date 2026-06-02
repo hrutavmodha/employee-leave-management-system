@@ -32,6 +32,7 @@ class User extends Authenticatable
         'designation',
         'joining_date',
         'status',
+        'profile_picture',
     ];
 
     /**

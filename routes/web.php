@@ -5,6 +5,7 @@ use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\DepartmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -16,9 +17,8 @@ Route::get('/dashboard', function () {
     $currentYear = date('Y');
     
     $stats = [
-        'remaining' => $user->leaveBalances()->where('year', $currentYear)->sum('remaining_days'),
         'pending' => $user->leaveRequests()->where('status', 'Pending')->count(),
-        'approved' => $user->leaveRequests()->where('status', 'Approved')->count(),
+        'approved' => $user->leaveRequests()->where('status', 'Approved')->whereYear('start_date', $currentYear)->sum('days_requested'),
     ];
 
     $pendingApprovals = 0;
@@ -39,6 +39,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/documentation', function () {
+        return view('documentation');
+    })->name('documentation');
 
     // Leave Requests (All Users)
     Route::get('/leaves', [LeaveController::class, 'index'])->name('leaves.index');
@@ -51,15 +54,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
         Route::post('/approvals/{leaveRequest}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
         Route::post('/approvals/{leaveRequest}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
+        Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     });
 
     // Admin Specific Routes
     Route::middleware('role:HR/Admin')->group(function () {
-        Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
         Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
+        Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
 
         Route::resource('leave-types', LeaveTypeController::class);
+        Route::resource('departments', DepartmentController::class);
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     });
 });

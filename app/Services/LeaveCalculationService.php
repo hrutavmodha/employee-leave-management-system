@@ -19,6 +19,17 @@ class LeaveCalculationService
         $year = $year ?: date('Y');
 
         foreach ($leaveTypes as $type) {
+            $carriedOver = 0;
+            if ($type->carry_forward) {
+                $previousBalance = LeaveBalance::where('user_id', $user->id)
+                    ->where('leave_type_id', $type->id)
+                    ->where('year', $year - 1)
+                    ->first();
+                if ($previousBalance) {
+                    $carriedOver = $previousBalance->remaining_days;
+                }
+            }
+
             LeaveBalance::firstOrCreate(
                 [
                     'user_id' => $user->id,
@@ -26,9 +37,9 @@ class LeaveCalculationService
                     'year' => $year,
                 ],
                 [
-                    'allocated_days' => $type->allowed_days,
+                    'allocated_days' => $type->allowed_days + $carriedOver,
                     'used_days' => 0,
-                    'remaining_days' => $type->allowed_days,
+                    'remaining_days' => $type->allowed_days + $carriedOver,
                 ]
             );
         }
@@ -73,6 +84,21 @@ class LeaveCalculationService
 
         $balance->used_days += $request->days_requested;
         $balance->remaining_days -= $request->days_requested;
+        $balance->save();
+    }
+
+    /**
+     * Refund days to user balance when an approved leave is cancelled.
+     */
+    public function refundBalance(LeaveRequest $request)
+    {
+        $year = $request->start_date->year;
+        $user = $request->user;
+
+        $balance = $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+
+        $balance->used_days = max(0, $balance->used_days - $request->days_requested);
+        $balance->remaining_days = min($balance->allocated_days, $balance->remaining_days + $request->days_requested);
         $balance->save();
     }
 }

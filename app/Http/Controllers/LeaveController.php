@@ -79,7 +79,14 @@ class LeaveController extends Controller
     public function cancel(LeaveRequest $leaveRequest)
     {
         if ($leaveRequest->user_id !== Auth::id()) abort(403);
-        $leaveRequest->update(['status' => 'Cancelled']);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($leaveRequest) {
+            if ($leaveRequest->status === 'Approved') {
+                $this->calculationService->refundBalance($leaveRequest);
+            }
+            $leaveRequest->update(['status' => 'Cancelled']);
+        });
+
         return redirect()->route('leaves.index')->with('success', 'Leave request cancelled.');
     }
 }

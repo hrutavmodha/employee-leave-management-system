@@ -72,4 +72,20 @@ class EmployeeController extends Controller
 
         return redirect()->route('employees.index')->with('success', 'Employee created and leave balances initialized.');
     }
+
+    /**
+     * Remove the specified employee from storage.
+     */
+    public function destroy(User $employee)
+    {
+        // Prevent deleting themselves through this route
+        if ($employee->id === auth()->id()) {
+            return redirect()->route('employees.index')->with('error', 'You cannot delete yourself through Employee Management.');
+        }
+
+        // Only allow deleting lower-level employees (HR/Admin cannot be deleted by other admins unless needed, or just let them delete anyone else)
+        $employee->delete();
+
+        return redirect()->route('employees.index')->with('success', 'Employee deleted successfully.');
+    }
 }

@@ -9,16 +9,22 @@ use Illuminate\Support\Facades\DB;
 
 class ReportService
 {
-    /**
-     * Get summary of leaves for all employees.
-     */
     public function getEmployeeReport()
     {
-        return User::with(['department', 'leaveBalances.leaveType'])
-            ->withCount(['leaveRequests as approved_leaves' => function ($query) {
-                $query->where('status', 'Approved');
-            }])
-            ->get();
+        return User::with([
+            'department',
+            'leaveBalances' => function ($query) {
+                $query->where('year', date('Y'))->with('leaveType');
+            }
+        ])
+        ->withSum(['leaveRequests as approved_leaves' => function ($query) {
+            $query->where('status', 'Approved')->whereYear('start_date', date('Y'));
+        }], 'days_requested')
+        ->get()
+        ->map(function ($user) {
+            $user->approved_leaves = $user->approved_leaves ?? 0;
+            return $user;
+        });
     }
 
     /**
@@ -32,10 +38,11 @@ class ReportService
                 $stats = LeaveRequest::whereHas('user', function ($q) use ($dept) {
                     $q->where('department_id', $dept->id);
                 })
+                ->whereYear('start_date', date('Y'))
                 ->selectRaw("
-                    COUNT(*) as total,
-                    SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved,
-                    SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected
+                    SUM(days_requested) as total,
+                    SUM(CASE WHEN status = 'Approved' THEN days_requested ELSE 0 END) as approved,
+                    SUM(CASE WHEN status = 'Rejected' THEN days_requested ELSE 0 END) as rejected
                 ")
                 ->first();
 
@@ -52,7 +59,7 @@ class ReportService
      */
     public function getMonthlyStats()
     {
-        return LeaveRequest::selectRaw("strftime('%m', start_date) as month, COUNT(*) as count")
+        return LeaveRequest::selectRaw("strftime('%m', start_date) as month, SUM(days_requested) as count")
             ->whereYear('start_date', date('Y'))
             ->where('status', 'Approved')
             ->groupBy('month')

@@ -63,7 +63,7 @@ class ProfileTest extends TestCase
 
     public function test_user_can_delete_their_account(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'HR/Admin']);
 
         $response = $this
             ->actingAs($user)
@@ -81,7 +81,7 @@ class ProfileTest extends TestCase
 
     public function test_correct_password_must_be_provided_to_delete_account(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'HR/Admin']);
 
         $response = $this
             ->actingAs($user)
@@ -94,6 +94,44 @@ class ProfileTest extends TestCase
             ->assertSessionHasErrorsIn('userDeletion', 'password')
             ->assertRedirect('/profile');
 
+        $this->assertNotNull($user->fresh());
+    }
+
+    public function test_profile_picture_can_be_uploaded(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $file = \Illuminate\Http\UploadedFile::fake()->image('avatar.jpg');
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => 'Test User',
+                'email' => $user->email,
+                'profile_picture' => $file,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect('/profile');
+
+        $user->refresh();
+        $this->assertNotNull($user->profile_picture);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($user->profile_picture);
+    }
+
+    public function test_standard_employee_cannot_delete_their_account(): void
+    {
+        $user = User::factory()->create(['role' => 'Employee']);
+
+        $response = $this
+            ->actingAs($user)
+            ->delete('/profile', [
+                'password' => 'password',
+            ]);
+
+        $response->assertStatus(403);
         $this->assertNotNull($user->fresh());
     }
 }

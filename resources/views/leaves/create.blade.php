@@ -7,6 +7,7 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <h1 class="text-3xl font-black text-center text-gray-900 mb-6">Apply for Leave</h1>
             
             <!-- Balance Summary -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
