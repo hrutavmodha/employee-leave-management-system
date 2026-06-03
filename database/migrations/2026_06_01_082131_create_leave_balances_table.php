@@ -20,6 +20,8 @@ return new class extends Migration
             $table->integer('used_days')->default(0);
             $table->integer('remaining_days');
             $table->timestamps();
+
+            $table->unique(['user_id', 'leave_type_id', 'year']);
         });
     }
 
