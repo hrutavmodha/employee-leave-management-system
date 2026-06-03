@@ -12,7 +12,7 @@
             <!-- Role Matrix Card -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 p-6">
                 <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span>🛡️</span> Role-Based Access Control (RBAC)
+                    <span>&#x1F6E1;&#xFE0F;</span> Role-Based Access Control (RBAC)
                 </h3>
                 <p class="text-sm text-gray-600 mb-4">
                     ELMS uses role-based security permissions. Features and options are customized to your account's role.
@@ -30,33 +30,33 @@
                         <tbody class="bg-white divide-y divide-gray-100">
                             <tr>
                                 <td class="px-6 py-4 font-semibold text-gray-800">Personal Dashboard & Profile</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
                             </tr>
                             <tr>
                                 <td class="px-6 py-4 font-semibold text-gray-800">Apply for & Cancel Leaves</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
                             </tr>
                             <tr>
                                 <td class="px-6 py-4 font-semibold text-gray-800">Approve / Reject Subordinate Leaves</td>
-                                <td class="px-6 py-4 text-center text-red-500 font-bold">✗</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
+                                <td class="px-6 py-4 text-center text-red-500 font-bold">&#x2717;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
                             </tr>
                             <tr>
                                 <td class="px-6 py-4 font-semibold text-gray-800">Add / Delete Employees</td>
-                                <td class="px-6 py-4 text-center text-red-500 font-bold">✗</td>
-                                <td class="px-6 py-4 text-center text-red-500 font-bold">✗</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
+                                <td class="px-6 py-4 text-center text-red-500 font-bold">&#x2717;</td>
+                                <td class="px-6 py-4 text-center text-red-500 font-bold">&#x2717;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
                             </tr>
                             <tr>
                                 <td class="px-6 py-4 font-semibold text-gray-800">System-wide Leave Reports</td>
-                                <td class="px-6 py-4 text-center text-red-500 font-bold">✗</td>
-                                <td class="px-6 py-4 text-center text-red-500 font-bold">✗</td>
-                                <td class="px-6 py-4 text-center text-green-600 font-bold">✓</td>
+                                <td class="px-6 py-4 text-center text-red-500 font-bold">&#x2717;</td>
+                                <td class="px-6 py-4 text-center text-red-500 font-bold">&#x2717;</td>
+                                <td class="px-6 py-4 text-center text-green-600 font-bold">&#x2713;</td>
                             </tr>
                         </tbody>
                     </table>
@@ -68,7 +68,7 @@
                 <!-- Apply for Leave Guide -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 p-6 space-y-3">
                     <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <span>📄</span> How to Apply for Leaves
+                        <span>&#x1F4C4;</span> How to Apply for Leaves
                     </h3>
                     <p class="text-sm text-gray-600">
                         Employees and managers can request paid leave dynamically through a single dashboard click:
@@ -85,7 +85,7 @@
                 <!-- Profile Customization -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 p-6 space-y-3">
                     <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <span>👤</span> Profile Customization
+                        <span>&#x1F464;</span> Profile Customization
                     </h3>
                     <p class="text-sm text-gray-600">
                         Customise your personal identity avatar and account safety:
@@ -103,7 +103,7 @@
             <!-- Manager and Administrative Controls -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 p-6 space-y-4">
                 <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <span>⚙️</span> Manager & Administrator Features
+                    <span>&#x2699;&#xFE0F;</span> Manager & Administrator Features
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">

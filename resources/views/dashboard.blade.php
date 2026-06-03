@@ -33,7 +33,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 text-sm">
                         <!-- Department -->
                         <div class="flex items-center justify-center md:justify-start gap-2 text-gray-600">
-                            <span class="text-gray-400 text-lg">🏢</span>
+                            <span class="text-gray-400 text-lg">&#x1F3E2;</span>
                             <div>
                                 <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Department</div>
                                 <div class="font-semibold">{{ Auth::user()->department->name ?? 'Not Assigned' }}</div>
@@ -42,7 +42,7 @@
 
                         <!-- Manager -->
                         <div class="flex items-center justify-center md:justify-start gap-2 text-gray-600">
-                            <span class="text-gray-400 text-lg">👤</span>
+                            <span class="text-gray-400 text-lg">&#x1F464;</span>
                             <div>
                                 <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Reporting Manager</div>
                                 <div class="font-semibold">{{ Auth::user()->manager->name ?? 'None' }}</div>
@@ -51,7 +51,7 @@
 
                         <!-- Joining Date -->
                         <div class="flex items-center justify-center md:justify-start gap-2 text-gray-600">
-                            <span class="text-gray-400 text-lg">📅</span>
+                            <span class="text-gray-400 text-lg">&#x1F4C5;</span>
                             <div>
                                 <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Joining Date</div>
                                 <div class="font-semibold">
@@ -62,7 +62,7 @@
 
                         <!-- Role -->
                         <div class="flex items-center justify-center md:justify-start gap-2 text-gray-600">
-                            <span class="text-gray-400 text-lg">🛡️</span>
+                            <span class="text-gray-400 text-lg">&#x1F6E1;&#xFE0F;</span>
                             <div>
                                 <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Role</div>
                                 <div class="font-semibold">{{ Auth::user()->role }}</div>
@@ -71,7 +71,7 @@
 
                         <!-- Status -->
                         <div class="flex items-center justify-center md:justify-start gap-2 text-gray-600">
-                            <span class="text-gray-400 text-lg">🟢</span>
+                            <span class="text-gray-400 text-lg">&#x1F7E2;</span>
                             <div>
                                 <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Status</div>
                                 <div class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">
@@ -117,14 +117,14 @@
                     <h3 class="font-bold text-gray-700 mb-4">Quick Actions</h3>
                     <div class="flex flex-wrap gap-4">
                         <a href="{{ route('leaves.create') }}" class="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-4 py-3 rounded-lg border border-blue-800 transition flex items-center shadow-md">
-                            <span class="mr-2">📄</span> Apply for New Leave
+                            <span class="mr-2">&#x1F4C4;</span> Apply for New Leave
                         </a>
                         <a href="{{ route('leaves.index') }}" class="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-4 py-3 rounded-lg border border-blue-800 transition flex items-center shadow-md">
-                            <span class="mr-2">🕒</span> View Leave History
+                            <span class="mr-2">&#x1F552;</span> View Leave History
                         </a>
                         @if(Auth::user()->isAdmin())
                         <a href="{{ route('employees.create') }}" class="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-4 py-3 rounded-lg border border-blue-800 transition flex items-center shadow-md">
-                            <span class="mr-2">👤</span> Add New Employee
+                            <span class="mr-2">&#x1F464;</span> Add New Employee
                         </a>
                         @endif
                     </div>

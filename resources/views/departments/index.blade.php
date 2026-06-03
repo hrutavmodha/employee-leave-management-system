@@ -37,7 +37,7 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         <div class="flex items-center">
                                             <div class="h-8 w-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold mr-3 border border-indigo-100">
-                                                🏢
+                                                &#x1F3E2;
                                             </div>
                                             <div>
                                                 <div class="text-sm font-bold text-gray-900">{{ $dept->name }}</div>

@@ -4,7 +4,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 
 ---
 
-## 🚀 Key Features
+## &#x1F680; Key Features
 
 ### 1. Authentication & Role-Based Access Control (RBAC)
 - **Multi-Role Support:** Distinct interfaces and permissions for **Employees**, **Managers**, and **HR/Admins**.
@@ -37,7 +37,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 
 ---
 
-## 🛠️ Technical Stack
+## &#x1F6E0;&#xFE0F; Technical Stack
 
 - **Backend:** PHP 8.2+ / Laravel 12 (latest)
 - **Frontend:** Blade Templating Engine / Tailwind CSS / Alpine.js
@@ -48,7 +48,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 
 ---
 
-## 📦 Installation & Setup
+## &#x1F4E6; Installation & Setup
 
 ### Prerequisites
 - PHP 8.2 or higher
@@ -86,7 +86,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 
 ---
 
-## 🔑 Default Credentials (Development)
+## &#x1F511; Default Credentials (Development)
 
 The system comes pre-seeded with an Administrative account for testing:
 
