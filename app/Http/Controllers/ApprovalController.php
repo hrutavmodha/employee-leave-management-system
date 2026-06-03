@@ -55,6 +55,10 @@ class ApprovalController extends Controller
     {
         $this->authorizeAction($leaveRequest);
 
+        if ($leaveRequest->status !== 'Pending') {
+            return redirect()->route('approvals.index')->with('error', 'Only pending leave requests can be approved.');
+        }
+
         DB::beginTransaction();
         try {
             // Deduct balance
@@ -85,6 +89,10 @@ class ApprovalController extends Controller
     public function reject(Request $request, LeaveRequest $leaveRequest)
     {
         $this->authorizeAction($leaveRequest);
+
+        if ($leaveRequest->status !== 'Pending') {
+            return redirect()->route('approvals.index')->with('error', 'Only pending leave requests can be rejected.');
+        }
 
         $request->validate([
             'manager_comment' => 'required|string|max:1000',
