@@ -24,7 +24,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 
 ### 4. Managerial Approval System
 - **Supervisor Dashboard:** Managers see pending requests from their direct reports; Admins see organizational-wide requests.
-- **One-Click Actions:** Instant approval or rejection with mandatory feedback comments.
+- **One-Click Actions:** Instant approval or rejection with optional feedback comments.
 - **Atomic Operations:** Database transactions ensure leave balances are only deducted upon successful approval.
 
 ### 5. Leave Balances & Automation
@@ -32,8 +32,8 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 - **Automatic Deductions:** Intelligent service layer handles all mathematical operations, preventing manual entry errors or "Insufficient Balance" overdraws.
 
 ### 6. Reports & Analytics
-- **Visual Dashboard:** Aggregated data on total leaves taken, department-wise statistics, and monthly approval trends.
-- **Employee Summaries:** At-a-glance view of all staff balances and historical usage.
+- **Visual Dashboard:** Aggregated approved leaves, department-wise statistics, and an interactive monthly approved leaves vertical bar chart.
+- **Employee Summaries:** At-a-glance view of all staff balances, departments, and historical usage.
 
 ---
 
@@ -93,3 +93,4 @@ The system comes pre-seeded with an Administrative account for testing:
 - **Email:** `test@example.com`
 - **Password:** `password`
 - **Role:** HR/Admin
+- **Department:** Human Resources

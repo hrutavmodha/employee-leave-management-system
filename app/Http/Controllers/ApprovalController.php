@@ -95,7 +95,7 @@ class ApprovalController extends Controller
         }
 
         $request->validate([
-            'manager_comment' => 'required|string|max:1000',
+            'manager_comment' => 'nullable|string|max:1000',
         ]);
 
         $leaveRequest->update([

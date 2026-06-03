@@ -141,4 +141,113 @@ class LeaveApprovalStateTest extends TestCase
         $this->balance->refresh();
         $this->assertEquals($initialRemaining, $this->balance->remaining_days);
     }
+
+    public function test_manager_can_reject_leave_request_without_comment(): void
+    {
+        Notification::fake();
+
+        // Arrange: Create a Pending request
+        $request = LeaveRequest::create([
+            'user_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => now()->addDays(2),
+            'end_date' => now()->addDays(4),
+            'days_requested' => 3,
+            'reason' => 'Trip',
+            'status' => 'Pending',
+        ]);
+
+        // Access the index page to populate the cache
+        $this->actingAs($this->manager)->get(route('approvals.index'))
+            ->assertStatus(200)
+            ->assertViewHas('pendingRequests', function ($requests) use ($request) {
+                return $requests->contains('id', $request->id);
+            });
+
+        // Act: Reject the request without manager_comment
+        $response = $this->actingAs($this->manager)->post(
+            route('approvals.reject', $request),
+            ['manager_comment' => '']
+        );
+
+        // Assert
+        $response->assertRedirect(route('approvals.index'));
+        $response->assertSessionHas('success', 'Leave request rejected and employee notified.');
+
+        // Assert status in database is updated
+        $request->refresh();
+        $this->assertEquals('Rejected', $request->status);
+        $this->assertNull($request->manager_comment);
+
+        // Assert notification was sent
+        Notification::assertSentTo(
+            $this->employee,
+            \App\Notifications\LeaveStatusUpdated::class,
+            function ($notification) use ($request) {
+                return $notification->leaveRequest->id === $request->id;
+            }
+        );
+
+        // Assert that visiting the index again shows the updated list (cache cleared)
+        $this->actingAs($this->manager)->get(route('approvals.index'))
+            ->assertStatus(200)
+            ->assertViewHas('pendingRequests', function ($requests) use ($request) {
+                return !$requests->contains('id', $request->id);
+            });
+    }
+
+    public function test_manager_can_reject_leave_request_with_comment(): void
+    {
+        Notification::fake();
+
+        // Arrange: Create a Pending request
+        $request = LeaveRequest::create([
+            'user_id' => $this->employee->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => now()->addDays(2),
+            'end_date' => now()->addDays(4),
+            'days_requested' => 3,
+            'reason' => 'Trip',
+            'status' => 'Pending',
+        ]);
+
+        // Access the index page to populate the cache
+        $this->actingAs($this->manager)->get(route('approvals.index'))
+            ->assertStatus(200)
+            ->assertViewHas('pendingRequests', function ($requests) use ($request) {
+                return $requests->contains('id', $request->id);
+            });
+
+        // Act: Reject the request with manager_comment
+        $response = $this->actingAs($this->manager)->post(
+            route('approvals.reject', $request),
+            ['manager_comment' => 'Not allowed at this time']
+        );
+
+        // Assert
+        $response->assertRedirect(route('approvals.index'));
+        $response->assertSessionHas('success', 'Leave request rejected and employee notified.');
+
+        // Assert status in database is updated
+        $request->refresh();
+        $this->assertEquals('Rejected', $request->status);
+        $this->assertEquals('Not allowed at this time', $request->manager_comment);
+
+        // Assert notification was sent
+        Notification::assertSentTo(
+            $this->employee,
+            \App\Notifications\LeaveStatusUpdated::class,
+            function ($notification) use ($request) {
+                return $notification->leaveRequest->id === $request->id;
+            }
+        );
+
+        // Assert that visiting the index again shows the updated list (cache cleared)
+        $this->actingAs($this->manager)->get(route('approvals.index'))
+            ->assertStatus(200)
+            ->assertViewHas('pendingRequests', function ($requests) use ($request) {
+                return !$requests->contains('id', $request->id);
+            });
+    }
 }
+

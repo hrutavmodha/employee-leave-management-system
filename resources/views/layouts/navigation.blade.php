@@ -1,4 +1,4 @@
-<nav x-data="{ open: false }" class="bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 sticky top-0 z-50 shadow-sm">
+<nav x-data="{ open: false }" class="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -66,7 +66,7 @@
                 <div class="hidden lg:flex lg:items-center">
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">
-                            <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150 gap-2">
+                            <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-black dark:text-white bg-gray-100 dark:bg-gray-800 hover:text-black dark:hover:text-white focus:outline-none transition ease-in-out duration-150 gap-2">
                                 @if(Auth::user()->profile_picture)
                                     <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-6 h-6 rounded-full object-cover border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10">
                                 @else
@@ -105,7 +105,7 @@
 
                 <!-- Hamburger Button (Mobile Only) -->
                 <div class="flex items-center lg:hidden">
-                    <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:bg-gray-100 dark:focus:bg-slate-700 focus:text-gray-500 transition duration-150 ease-in-out">
+                    <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-black dark:text-white hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:bg-gray-200 dark:focus:bg-gray-700 focus:text-black dark:focus:text-white transition duration-150 ease-in-out">
                         <div class="relative w-6 h-6">
                             <span class="hamburger-line absolute block h-0.5 w-6 bg-current transform transition-all duration-500 ease-in-out origin-center" 
                                   :class="open ? 'rotate-45 top-[11px]' : 'top-[5px]'"></span>
@@ -128,7 +128,7 @@
          x-transition:leave="transition ease-out duration-200"
          x-transition:leave-start="opacity-100 translate-y-0"
          x-transition:leave-end="opacity-0 -translate-y-2"
-         class="lg:hidden absolute top-full w-full left-0 bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 shadow-xl z-50 max-h-[calc(100vh-4rem)] overflow-y-auto">
+         class="lg:hidden absolute top-full w-full left-0 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-xl z-50 max-h-[calc(100vh-4rem)] overflow-y-auto">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
@@ -149,7 +149,7 @@
             @endif
 
             @if(Auth::user()->isManager() || Auth::user()->isAdmin())
-            <div class="border-t border-gray-200 dark:border-slate-700 my-2"></div>
+            <div class="border-t border-gray-300 dark:border-gray-700 my-2"></div>
             <x-responsive-nav-link :href="route('employees.index')" :active="request()->routeIs('employees.*')">
                 {{ __('Employees') }}
             </x-responsive-nav-link>
@@ -169,7 +169,7 @@
         </div>
 
         <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200 dark:border-slate-700">
+        <div class="pt-4 pb-1 border-t border-gray-300 dark:border-gray-700">
             <div class="px-4 flex items-center">
                 <div class="flex items-center gap-3">
                     <div class="shrink-0">
@@ -182,7 +182,7 @@
                         @endif
                     </div>
                     <div>
-                        <div class="font-medium text-base text-gray-800 dark:text-gray-200">{{ Auth::user()->name }}</div>
+                        <div class="font-medium text-base text-black dark:text-white">{{ Auth::user()->name }}</div>
                         <div class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{{ Auth::user()->role }}</div>
                     </div>
                 </div>

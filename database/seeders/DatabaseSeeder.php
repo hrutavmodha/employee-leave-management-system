@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
             LeaveTypeSeeder::class,
         ]);
 
+        $hrDept = \App\Models\Department::where('name', 'Human Resources')->first();
+
         $admin = User::updateOrCreate(
             ['email' => 'test@example.com'],
             [
@@ -29,6 +31,7 @@ class DatabaseSeeder extends Seeder
                 'last_name' => 'User',
                 'password' => Hash::make('password'),
                 'role' => 'HR/Admin',
+                'department_id' => $hrDept ? $hrDept->id : null,
             ]
         );
 

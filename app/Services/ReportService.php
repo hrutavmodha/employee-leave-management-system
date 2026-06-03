@@ -42,7 +42,7 @@ class ReportService
                 })
                 ->select('departments.id', 'departments.name')
                 ->selectRaw('COUNT(DISTINCT users.id) as total_employees')
-                ->selectRaw('COALESCE(SUM(leave_requests.days_requested), 0) as total_leaves')
+                ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Approved' THEN leave_requests.days_requested ELSE 0 END), 0) as total_leaves")
                 ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Approved' THEN leave_requests.days_requested ELSE 0 END), 0) as approved_leaves")
                 ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Rejected' THEN leave_requests.days_requested ELSE 0 END), 0) as rejected_leaves")
                 ->groupBy('departments.id', 'departments.name')

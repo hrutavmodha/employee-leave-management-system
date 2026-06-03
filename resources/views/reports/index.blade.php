@@ -25,7 +25,7 @@
                             </thead>
                             <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
                                 @foreach($employeeStats as $user)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-750/30 transition duration-150">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition duration-150">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ $user->name }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $user->department->name ?? 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-gray-900 dark:text-gray-100">{{ $user->approved_leaves }}</td>
@@ -59,7 +59,7 @@
                             </thead>
                             <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700 text-sm">
                                 @foreach($departmentStats as $dept)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-750/30 transition duration-150">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition duration-150">
                                     <td class="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{{ $dept->name }}</td>
                                     <td class="px-6 py-4 text-center text-gray-900 dark:text-gray-100">{{ $dept->total_leaves }}</td>
                                     <td class="px-6 py-4 text-center text-gray-900 dark:text-gray-100">
@@ -77,20 +77,79 @@
                 <div class="bg-white dark:bg-slate-800 overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 dark:border-slate-700">
                     <div class="p-6">
                         <h3 class="text-lg font-bold mb-4 text-gray-700 dark:text-gray-200">Monthly Approved Leaves ({{ date('Y') }})</h3>
-                        <div class="space-y-4">
-                            @forelse($monthlyStats as $stat)
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1 text-gray-700 dark:text-gray-300">
-                                        <span>Month {{ $stat->month }}</span>
-                                        <span class="font-bold">{{ $stat->count }} Leaves</span>
-                                    </div>
-                                    <div class="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2">
-                                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ min(100, $stat->count * 10) }}%"></div>
-                                    </div>
+                        
+                        @php
+                            $monthsData = collect(range(1, 12))->mapWithKeys(function ($m) use ($monthlyStats) {
+                                $key = str_pad($m, 2, '0', STR_PAD_LEFT);
+                                $stat = $monthlyStats->firstWhere('month', $key);
+                                return [$key => $stat ? (int)$stat->count : 0];
+                            });
+                            $maxCount = $monthsData->max() ?: 10;
+                            // Ensure grid increments are clean integers
+                            $gridSteps = 4;
+                            $stepValue = ceil($maxCount / $gridSteps) ?: 1;
+                            $chartMax = $stepValue * $gridSteps;
+                            
+                            $monthNames = [
+                                '01' => 'Jan', '02' => 'Feb', '03' => 'Mar', '04' => 'Apr',
+                                '05' => 'May', '06' => 'Jun', '07' => 'Jul', '08' => 'Aug',
+                                '09' => 'Sep', '10' => 'Oct', '11' => 'Nov', '12' => 'Dec'
+                            ];
+                        @endphp
+
+                        <div class="relative flex flex-col mt-6">
+                            <!-- Chart Area: Grid + Bars -->
+                            <div class="relative h-48 w-full">
+                                <!-- Y-Axis Grid Lines & Labels -->
+                                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none pb-0">
+                                    @for ($i = $gridSteps; $i >= 0; $i--)
+                                        @php
+                                            $val = $stepValue * $i;
+                                        @endphp
+                                        <div class="flex items-center w-full h-0">
+                                            <span class="text-[9px] font-bold text-gray-400 dark:text-gray-500 w-6 text-right mr-2">{{ $val }}</span>
+                                            <div class="flex-1 border-b border-dashed border-gray-200/80 dark:border-slate-700/50"></div>
+                                        </div>
+                                    @endfor
                                 </div>
-                            @empty
-                                <p class="text-sm text-gray-500 dark:text-gray-400 italic">No approved leaves this year yet.</p>
-                            @endforelse
+
+                                <!-- Bar Charts Container -->
+                                <div class="absolute inset-0 flex items-end justify-between pl-8 pb-0">
+                                    @foreach($monthsData as $month => $count)
+                                        @php
+                                            $percent = $chartMax > 0 ? ($count / $chartMax) * 100 : 0;
+                                        @endphp
+                                        <div class="flex-1 flex flex-col items-center group h-full justify-end relative">
+                                            <!-- Vertical Bar -->
+                                            <div class="w-1/2 max-w-[20px] bg-gradient-to-t from-blue-600 to-indigo-500 dark:from-blue-500 dark:to-indigo-400 rounded-t hover:from-blue-500 hover:to-indigo-400 transition-all duration-300 relative cursor-pointer"
+                                                 style="height: {{ $percent }}%">
+                                                
+                                                <!-- Tooltip -->
+                                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none bg-slate-900 dark:bg-slate-950 text-white text-[10px] rounded px-1.5 py-0.5 shadow-md z-30 whitespace-nowrap">
+                                                    {{ $count }} Leaves
+                                                </div>
+
+                                                @if($count > 0)
+                                                    <span class="absolute -top-5 left-1/2 transform -translate-x-1/2 text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                                                        {{ $count }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- X-Axis Labels -->
+                            <div class="flex justify-between pl-8 mt-2 pt-2 border-t border-gray-200 dark:border-slate-700">
+                                @foreach($monthsData as $month => $count)
+                                    <div class="flex-1 text-center">
+                                        <span class="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                            {{ $monthNames[$month] ?? $month }}
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 </div>

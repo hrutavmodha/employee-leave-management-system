@@ -12,7 +12,7 @@ class LeaveStatusUpdated extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    protected $leaveRequest;
+    public $leaveRequest;
 
     /**
      * Create a new notification instance.

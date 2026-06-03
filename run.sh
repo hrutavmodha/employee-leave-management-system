@@ -6,6 +6,7 @@ cleanup() {
     echo "Stopping servers..."
     kill $SERVE_PID
     kill $VITE_PID
+    kill $REDIS_PID
     exit
 }
 
@@ -14,6 +15,10 @@ trap cleanup SIGINT
 
 IP_ADDR="10.50.15.110"
 URL="http://$IP_ADDR:8000"
+
+echo "Starting local Redis Server..."
+./redis-local/redis-stable/src/redis-server ./redis-local/redis-stable/redis.conf &
+REDIS_PID=$!
 
 echo "Starting Laravel Development Server (Backend)..."
 php artisan serve --host=0.0.0.0 &

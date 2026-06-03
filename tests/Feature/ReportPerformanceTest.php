@@ -81,15 +81,96 @@ class ReportPerformanceTest extends TestCase
         $reportA = $report->firstWhere('name', 'Engineering');
         $this->assertNotNull($reportA);
         $this->assertEquals(2, $reportA->total_employees);
-        $this->assertEquals(5, $reportA->total_leaves);
+        $this->assertEquals(3, $reportA->total_leaves);
         $this->assertEquals(3, $reportA->approved_leaves);
         $this->assertEquals(2, $reportA->rejected_leaves);
 
         $reportB = $report->firstWhere('name', 'Marketing');
         $this->assertNotNull($reportB);
         $this->assertEquals(1, $reportB->total_employees);
-        $this->assertEquals(4, $reportB->total_leaves);
+        $this->assertEquals(0, $reportB->total_leaves);
         $this->assertEquals(0, $reportB->approved_leaves);
         $this->assertEquals(0, $reportB->rejected_leaves);
     }
+
+    public function test_reports_page_displays_department_stats_correctly_excluding_rejected_leaves(): void
+    {
+        Cache::forget('reports.departments');
+        Cache::forget('reports.employees');
+        Cache::forget('reports.monthly');
+
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+        $dept = Department::create(['name' => 'Design', 'description' => 'UI UX']);
+        
+        $employee = User::factory()->create([
+            'department_id' => $dept->id,
+            'role' => 'Employee',
+        ]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Sick Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false,
+        ]);
+
+        // Approved leave
+        LeaveRequest::create([
+            'user_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => now()->format('Y-m-d'),
+            'end_date' => now()->addDays(1)->format('Y-m-d'),
+            'days_requested' => 2,
+            'status' => 'Approved',
+            'reason' => 'Recovery',
+        ]);
+
+        // Rejected leave
+        LeaveRequest::create([
+            'user_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => now()->addDays(5)->format('Y-m-d'),
+            'end_date' => now()->addDays(7)->format('Y-m-d'),
+            'days_requested' => 3,
+            'status' => 'Rejected',
+            'reason' => 'Not urgent',
+        ]);
+
+        // Pending leave
+        LeaveRequest::create([
+            'user_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => now()->addDays(10)->format('Y-m-d'),
+            'end_date' => now()->addDays(14)->format('Y-m-d'),
+            'days_requested' => 5,
+            'status' => 'Pending',
+            'reason' => 'Planned vacation',
+        ]);
+
+        // Act
+        $response = $this->actingAs($admin)->get(route('reports.index'));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertViewHas('departmentStats', function ($stats) use ($dept) {
+            $deptStats = $stats->firstWhere('id', $dept->id);
+            return $deptStats && 
+                $deptStats->total_leaves == 2 && 
+                $deptStats->approved_leaves == 2 && 
+                $deptStats->rejected_leaves == 3;
+        });
+    }
+
+    public function test_database_seeder_assigns_human_resources_department_to_test_user(): void
+    {
+        // Act: Run the database seeder
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+
+        // Assert: The user 'test@example.com' exists and belongs to 'Human Resources' department
+        $user = User::where('email', 'test@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertNotNull($user->department);
+        $this->assertEquals('Human Resources', $user->department->name);
+    }
 }
+
+
