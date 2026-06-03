@@ -23,7 +23,9 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-        $employees = User::with(['department', 'manager'])->get();
+        $employees = \Illuminate\Support\Facades\Cache::remember('employees.list', 3600, function () {
+            return User::with(['department', 'manager'])->get();
+        });
         return view('employees.index', compact('employees'));
     }
 

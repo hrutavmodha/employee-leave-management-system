@@ -25,4 +25,15 @@ class LeaveBalance extends Model
     {
         return $this->belongsTo(LeaveType::class);
     }
+
+    protected static function booted(): void
+    {
+        $clearCache = function (LeaveBalance $balance) {
+            \Illuminate\Support\Facades\Cache::forget('user.balances.' . $balance->user_id . '.' . $balance->year);
+            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
 }

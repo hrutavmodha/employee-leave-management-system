@@ -47,4 +47,22 @@ class LeaveRequest extends Model
     {
         return $this->hasMany(Attachment::class);
     }
+
+    protected static function booted(): void
+    {
+        $clearCache = function (LeaveRequest $request) {
+            \Illuminate\Support\Facades\Cache::forget('user.leaves.' . $request->user_id);
+            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \Illuminate\Support\Facades\Cache::forget('reports.departments');
+            \Illuminate\Support\Facades\Cache::forget('reports.monthly');
+            
+            if ($request->user) {
+                \Illuminate\Support\Facades\Cache::forget('approvals.pending.' . $request->user->manager_id);
+            }
+            \Illuminate\Support\Facades\Cache::forget('approvals.pending.admin');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
 }

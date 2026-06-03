@@ -16,4 +16,15 @@ class Department extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    protected static function booted(): void
+    {
+        $clearCache = function (Department $department) {
+            \Illuminate\Support\Facades\Cache::forget('departments.list');
+            \Illuminate\Support\Facades\Cache::forget('reports.departments');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
 }

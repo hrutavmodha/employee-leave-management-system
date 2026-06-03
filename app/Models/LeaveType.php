@@ -27,4 +27,14 @@ class LeaveType extends Model
     {
         return $this->hasMany(LeaveRequest::class);
     }
+
+    protected static function booted(): void
+    {
+        $clearCache = function (LeaveType $leaveType) {
+            \Illuminate\Support\Facades\Cache::forget('leave_types.all');
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
 }

@@ -12,7 +12,9 @@ class DepartmentController extends Controller
      */
     public function index()
     {
-        $departments = Department::withCount('users')->get();
+        $departments = \Illuminate\Support\Facades\Cache::remember('departments.list', 3600, function () {
+            return Department::withCount('users')->get();
+        });
         return view('departments.index', compact('departments'));
     }
 

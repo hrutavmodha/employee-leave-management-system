@@ -21,15 +21,25 @@ class LeaveController extends Controller
 
     public function index()
     {
-        $requests = Auth::user()->leaveRequests()->with('leaveType')->latest()->get();
+        $userId = Auth::id();
+        $requests = \Illuminate\Support\Facades\Cache::remember('user.leaves.' . $userId, 3600, function () {
+            return Auth::user()->leaveRequests()->with('leaveType')->latest()->get();
+        });
         return view('leaves.index', compact('requests'));
     }
 
     public function create()
     {
-        $leaveTypes = LeaveType::all();
-        // Only show current year balances to avoid confusion
-        $balances = Auth::user()->leaveBalances()->where('year', date('Y'))->with('leaveType')->get();
+        $leaveTypes = \Illuminate\Support\Facades\Cache::remember('leave_types.all', 3600, function () {
+            return LeaveType::all();
+        });
+        
+        $userId = Auth::id();
+        $year = date('Y');
+        $balances = \Illuminate\Support\Facades\Cache::remember("user.balances.{$userId}.{$year}", 3600, function () {
+            return Auth::user()->leaveBalances()->where('year', date('Y'))->with('leaveType')->get();
+        });
+        
         return view('leaves.create', compact('leaveTypes', 'balances'));
     }
 

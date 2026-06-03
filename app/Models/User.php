@@ -109,4 +109,19 @@ class User extends Authenticatable
             'joining_date' => 'date',
         ];
     }
+
+    protected static function booted(): void
+    {
+        $clearCache = function (User $user) {
+            \Illuminate\Support\Facades\Cache::forget('employees.list');
+            \Illuminate\Support\Facades\Cache::forget('departments.list');
+            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \Illuminate\Support\Facades\Cache::forget('reports.departments');
+            \Illuminate\Support\Facades\Cache::forget('user.leaves.' . $user->id);
+            \Illuminate\Support\Facades\Cache::forget('user.balances.' . $user->id . '.' . date('Y'));
+        };
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
 }

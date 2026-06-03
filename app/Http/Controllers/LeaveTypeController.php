@@ -12,7 +12,9 @@ class LeaveTypeController extends Controller
      */
     public function index()
     {
-        $leaveTypes = LeaveType::all();
+        $leaveTypes = \Illuminate\Support\Facades\Cache::remember('leave_types.all', 3600, function () {
+            return LeaveType::all();
+        });
         return view('leave_types.index', compact('leaveTypes'));
     }
 
