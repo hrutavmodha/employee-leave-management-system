@@ -11,6 +11,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
+
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -34,6 +36,31 @@ class User extends Authenticatable
         'status',
         'profile_picture',
     ];
+
+    /**
+     * Get and set the user's role with titlecase normalization.
+     */
+    protected function role(): Attribute
+    {
+        return Attribute::make(
+            get: function (string $value) {
+                $mapped = [
+                    'employee' => 'Employee',
+                    'manager' => 'Manager',
+                    'hr/admin' => 'HR/Admin',
+                ];
+                return $mapped[strtolower($value)] ?? $value;
+            },
+            set: function (string $value) {
+                $mapped = [
+                    'employee' => 'Employee',
+                    'manager' => 'Manager',
+                    'hr/admin' => 'HR/Admin',
+                ];
+                return $mapped[strtolower($value)] ?? $value;
+            }
+        );
+    }
 
     /**
      * Get the full name.
