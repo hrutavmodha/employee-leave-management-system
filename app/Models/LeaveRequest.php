@@ -64,5 +64,16 @@ class LeaveRequest extends Model
 
         static::saved($clearCache);
         static::deleted($clearCache);
+
+        /**
+         * Delete attachment files from disk before the database
+         * cascade removes the attachment rows. Each Attachment's own
+         * deleting event handles the actual file deletion.
+         */
+        static::deleting(function (LeaveRequest $leaveRequest) {
+            $leaveRequest->attachments->each(function (Attachment $attachment) {
+                $attachment->delete();
+            });
+        });
     }
 }

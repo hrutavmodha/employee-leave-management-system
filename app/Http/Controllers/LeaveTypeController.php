@@ -80,9 +80,19 @@ class LeaveTypeController extends Controller
 
     /**
      * Remove the specified leave type from storage.
+     *
+     * Blocks deletion when associated leave requests or balances exist
+     * to prevent destructive cascade-deletion of historical records.
      */
     public function destroy(LeaveType $leaveType)
     {
+        if ($leaveType->leaveRequests()->exists() || $leaveType->leaveBalances()->exists()) {
+            return redirect()->route('leave-types.index')->with(
+                'error',
+                'Cannot delete this leave type because it has associated leave requests or balance records.'
+            );
+        }
+
         $leaveType->delete();
         return redirect()->route('leave-types.index')->with('success', 'Leave type deleted successfully.');
     }

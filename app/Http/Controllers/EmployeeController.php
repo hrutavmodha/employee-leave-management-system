@@ -19,13 +19,14 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Display a listing of employees.
+     * Display a paginated listing of employees.
+     *
+     * Uses pagination (15 per page) instead of loading the entire
+     * table into memory, preventing OOM on large organisations.
      */
     public function index()
     {
-        $employees = \Illuminate\Support\Facades\Cache::remember('employees.list', 3600, function () {
-            return User::with(['department', 'manager'])->get();
-        });
+        $employees = User::with(['department', 'manager'])->paginate(15);
         return view('employees.index', compact('employees'));
     }
 

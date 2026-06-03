@@ -150,5 +150,24 @@ class User extends Authenticatable
 
         static::saved($clearCache);
         static::deleted($clearCache);
+
+        /**
+         * Prune orphaned storage assets before the database cascade
+         * removes child rows (which would bypass Eloquent events).
+         *
+         * 1. Delete profile picture from the public disk.
+         * 2. Iterate child LeaveRequests and delete them via Eloquent
+         *    so that their own `deleting` events fire and cascade
+         *    file cleanup down to Attachment records.
+         */
+        static::deleting(function (User $user) {
+            if ($user->profile_picture) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_picture);
+            }
+
+            $user->leaveRequests->each(function (LeaveRequest $leaveRequest) {
+                $leaveRequest->delete();
+            });
+        });
     }
 }

@@ -52,16 +52,47 @@ class ReportService
 
     /**
      * Get monthly leave statistics for the current year.
+     *
+     * Returns a collection of objects with `month` (two-digit string)
+     * and `count` (total approved days) for each month that has data.
      */
     public function getMonthlyStats()
     {
         return \Illuminate\Support\Facades\Cache::remember('reports.monthly', 3600, function () {
-            return LeaveRequest::selectRaw("strftime('%m', start_date) as month, SUM(days_requested) as count")
+            $monthExpression = $this->monthExtractionSql('start_date');
+
+            return LeaveRequest::selectRaw("{$monthExpression} as month, SUM(days_requested) as count")
                 ->whereYear('start_date', date('Y'))
                 ->where('status', 'Approved')
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get();
         });
+    }
+
+    /**
+     * Return a raw SQL expression that extracts the month as a zero-padded
+     * two-digit string from the given date column.
+     *
+     * Supports SQLite, MySQL, MariaDB, and PostgreSQL. Throws for any
+     * unsupported driver so a misconfiguration is caught immediately
+     * rather than producing silent incorrect results.
+     *
+     * @param string $column The date/datetime column name.
+     * @return string Raw SQL fragment (e.g. "strftime('%m', start_date)").
+     */
+    private function monthExtractionSql(string $column): string
+    {
+        $driver = DB::getDriverName();
+
+        return match ($driver) {
+            'sqlite' => "strftime('%m', {$column})",
+            'mysql', 'mariadb' => "LPAD(MONTH({$column}), 2, '0')",
+            'pgsql' => "LPAD(CAST(EXTRACT(MONTH FROM {$column}) AS TEXT), 2, '0')",
+            default => throw new \RuntimeException(
+                "Unsupported database driver '{$driver}' for month extraction. " .
+                "Supported drivers: sqlite, mysql, mariadb, pgsql."
+            ),
+        };
     }
 }

@@ -118,6 +118,11 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Pagination Navigation --}}
+            <div class="mt-6">
+                {{ $employees->links() }}
+            </div>
         </div>
 
         <!-- Employee Details Modal -->
