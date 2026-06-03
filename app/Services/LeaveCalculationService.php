@@ -76,7 +76,19 @@ class LeaveCalculationService
         $year = $request->start_date->year;
         $user = $request->user;
 
-        $balance = $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+        // Ensure the balance record is initialized
+        $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+
+        // Fetch with pessimistic locking to serialize concurrent transactions
+        $balance = LeaveBalance::where('user_id', $user->id)
+            ->where('leave_type_id', $request->leave_type_id)
+            ->where('year', $year)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$balance) {
+            throw new Exception("Leave balance record not found.");
+        }
 
         if ($balance->remaining_days < $request->days_requested) {
             throw new Exception("Insufficient balance. User has {$balance->remaining_days} days, but requested {$request->days_requested}.");
@@ -95,7 +107,19 @@ class LeaveCalculationService
         $year = $request->start_date->year;
         $user = $request->user;
 
-        $balance = $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+        // Ensure the balance record is initialized
+        $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+
+        // Fetch with pessimistic locking to serialize concurrent transactions
+        $balance = LeaveBalance::where('user_id', $user->id)
+            ->where('leave_type_id', $request->leave_type_id)
+            ->where('year', $year)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$balance) {
+            throw new Exception("Leave balance record not found.");
+        }
 
         $balance->used_days = max(0, $balance->used_days - $request->days_requested);
         $balance->remaining_days = min($balance->allocated_days, $balance->remaining_days + $request->days_requested);
