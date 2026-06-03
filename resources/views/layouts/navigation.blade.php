@@ -68,9 +68,9 @@
                         <x-slot name="trigger">
                             <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-slate-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150 gap-2">
                                 @if(Auth::user()->profile_picture)
-                                    <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-6 h-6 rounded-full object-cover border border-gray-300 dark:border-slate-600">
+                                    <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-6 h-6 rounded-full object-cover border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10">
                                 @else
-                                    <div class="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-xs border border-gray-300 dark:border-slate-600">
+                                    <div class="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-xs border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10">
                                         {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
                                     </div>
                                 @endif
@@ -107,11 +107,11 @@
                 <div class="flex items-center lg:hidden">
                     <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:bg-gray-100 dark:focus:bg-slate-700 focus:text-gray-500 transition duration-150 ease-in-out">
                         <div class="relative w-6 h-6">
-                            <span class="absolute block h-0.5 w-6 bg-current transform transition-all duration-300 ease-in-out origin-center" 
+                            <span class="hamburger-line absolute block h-0.5 w-6 bg-current transform transition-all duration-500 ease-in-out origin-center" 
                                   :class="open ? 'rotate-45 top-[11px]' : 'top-[5px]'"></span>
-                            <span class="absolute block h-0.5 w-6 bg-current transition-all duration-300 ease-in-out" 
+                            <span class="hamburger-line absolute block h-0.5 w-6 bg-current transition-all duration-500 ease-in-out" 
                                   :class="open ? 'opacity-0 top-[11px]' : 'top-[11px]'"></span>
-                            <span class="absolute block h-0.5 w-6 bg-current transform transition-all duration-300 ease-in-out origin-center" 
+                            <span class="hamburger-line absolute block h-0.5 w-6 bg-current transform transition-all duration-500 ease-in-out origin-center" 
                                   :class="open ? '-rotate-45 top-[11px]' : 'top-[17px]'"></span>
                         </div>
                     </button>
@@ -122,13 +122,13 @@
 
     <!-- Responsive Navigation Menu -->
     <div x-show="open" 
-         x-transition:enter="transition ease-out duration-500"
+         x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 -translate-y-2"
          x-transition:enter-end="opacity-100 translate-y-0"
-         x-transition:leave="transition ease-in duration-400"
+         x-transition:leave="transition ease-out duration-200"
          x-transition:leave-start="opacity-100 translate-y-0"
          x-transition:leave-end="opacity-0 -translate-y-2"
-         class="lg:hidden absolute w-full left-0 bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 shadow-xl z-50 max-h-[calc(100vh-4rem)] overflow-y-auto">
+         class="lg:hidden absolute top-full w-full left-0 bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 shadow-xl z-50 max-h-[calc(100vh-4rem)] overflow-y-auto">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
@@ -174,9 +174,9 @@
                 <div class="flex items-center gap-3">
                     <div class="shrink-0">
                         @if(Auth::user()->profile_picture)
-                            <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-10 h-10 rounded-full object-cover border border-gray-300 dark:border-slate-600">
+                            <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-10 h-10 rounded-full object-cover border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10">
                         @else
-                            <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-sm border border-gray-300 dark:border-slate-600">
+                            <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-sm border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10">
                                 {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
                             </div>
                         @endif

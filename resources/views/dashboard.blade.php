@@ -14,9 +14,9 @@
                 <!-- Avatar Section -->
                 <div class="relative w-24 h-24 shrink-0">
                     @if(Auth::user()->profile_picture)
-                        <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-24 h-24 rounded-full object-cover border-4 border-blue-50 shadow-md">
+                        <img src="{{ asset('storage/' . Auth::user()->profile_picture) }}" alt="{{ Auth::user()->name }}" class="w-24 h-24 rounded-full object-cover border-4 border-black/10 dark:border-white/20 shadow-lg shadow-black/20 dark:shadow-white/10">
                     @else
-                        <div class="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-3xl border-4 border-blue-100 shadow-sm">
+                        <div class="w-24 h-24 rounded-full bg-blue-50 dark:bg-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-3xl border-4 border-black/10 dark:border-white/20 shadow-lg shadow-black/20 dark:shadow-white/10">
                             {{ strtoupper(substr(Auth::user()->first_name, 0, 1) . substr(Auth::user()->last_name, 0, 1)) }}
                         </div>
                     @endif
@@ -98,7 +98,7 @@
 
             @if(Auth::user()->isManager() || Auth::user()->isAdmin())
             <!-- Supervisor Actions -->
-            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-indigo-500">
+            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-indigo-500 dark:border-indigo-400">
                 <div class="p-6 flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Manager Dashboard</h3>

@@ -63,9 +63,9 @@
                                         <div class="flex items-center">
                                             <div class="flex-shrink-0 h-10 w-10 mr-3">
                                                 @if($employee->profile_picture)
-                                                    <img class="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-slate-700" src="{{ asset('storage/' . $employee->profile_picture) }}" alt="{{ $employee->name }}">
+                                                    <img class="h-10 w-10 rounded-full object-cover border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10" src="{{ asset('storage/' . $employee->profile_picture) }}" alt="{{ $employee->name }}">
                                                 @else
-                                                    <div class="h-10 w-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                                                    <div class="h-10 w-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm border border-black/20 dark:border-white/30 shadow shadow-black/20 dark:shadow-white/10">
                                                         {{ strtoupper(substr($employee->first_name, 0, 1) . (substr($employee->last_name, 0, 1) ?: '')) }}
                                                     </div>
                                                 @endif
@@ -167,10 +167,10 @@
                                 <div class="flex flex-col items-center text-center pb-4 border-b border-gray-100 dark:border-slate-700">
                                     <div class="relative mb-4">
                                         <template x-if="selectedEmployee.profile_picture">
-                                            <img :src="selectedEmployee.profile_picture" alt="Profile Picture" class="w-24 h-24 rounded-full object-cover border-4 border-blue-50 dark:border-slate-700 shadow-md">
+                                            <img :src="selectedEmployee.profile_picture" alt="Profile Picture" class="w-24 h-24 rounded-full object-cover border-4 border-black/10 dark:border-white/20 shadow-lg shadow-black/20 dark:shadow-white/10">
                                         </template>
                                         <template x-if="!selectedEmployee.profile_picture">
-                                            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl border-4 border-blue-50 dark:border-slate-700 shadow-md">
+                                            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl border-4 border-black/10 dark:border-white/20 shadow-lg shadow-black/20 dark:shadow-white/10">
                                                 <span x-text="selectedEmployee.initials"></span>
                                             </div>
                                         </template>

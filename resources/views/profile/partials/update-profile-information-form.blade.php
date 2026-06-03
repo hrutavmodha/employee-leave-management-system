@@ -21,9 +21,9 @@
         <div class="flex items-center gap-6">
             <div class="relative w-20 h-20">
                 @if($user->profile_picture)
-                    <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" class="w-20 h-20 rounded-full object-cover border-2 border-gray-300 dark:border-slate-650">
+                    <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->name }}" class="w-20 h-20 rounded-full object-cover border-2 border-black/20 dark:border-white/30 shadow-md shadow-black/20 dark:shadow-white/10">
                 @else
-                    <div class="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-2xl border-2 border-gray-300 dark:border-slate-600">
+                    <div class="w-20 h-20 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold text-2xl border-2 border-black/20 dark:border-white/30 shadow-md shadow-black/20 dark:shadow-white/10">
                         {{ strtoupper(substr($user->first_name, 0, 1) . substr($user->last_name, 0, 1)) }}
                     </div>
                 @endif

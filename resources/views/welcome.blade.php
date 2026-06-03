@@ -24,6 +24,8 @@
 
             // Global toggle function
             window.toggleDarkMode = function() {
+                document.documentElement.classList.add('theme-toggling');
+                
                 const isDark = document.documentElement.classList.toggle('dark');
                 localStorage.setItem('color-theme', isDark ? 'dark' : 'light');
                 
@@ -41,6 +43,10 @@
                         }
                     }
                 });
+
+                setTimeout(() => {
+                    document.documentElement.classList.remove('theme-toggling');
+                }, 500);
             };
 
             // Sync icons on page load
