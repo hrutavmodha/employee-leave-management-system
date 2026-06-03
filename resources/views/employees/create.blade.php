@@ -1,15 +1,15 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
             {{ __('Add New Employee') }}
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <h1 class="text-3xl font-black text-center text-gray-900 mb-6">Add New Employee</h1>
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
-                <div class="p-6 text-gray-900">
+            <p class="text-center text-gray-600 dark:text-gray-400 mb-6 max-w-3xl mx-auto text-sm leading-relaxed">Provision a new employee user account. The employee will automatically receive their <strong>allocated leave balance quotas</strong> based on current active HR policies.</p>
+            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 dark:border-slate-700">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
                     <form method="POST" action="{{ route('employees.store') }}" class="space-y-6">
                         @csrf
 
@@ -38,7 +38,7 @@
                             <!-- Role -->
                             <div>
                                 <x-input-label for="role" :value="__('System Role')" />
-                                <select id="role" name="role" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="role" name="role" class="mt-1 block w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
                                     <option value="Employee" {{ old('role') == 'Employee' ? 'selected' : '' }}>Employee</option>
                                     <option value="Manager" {{ old('role') == 'Manager' ? 'selected' : '' }}>Manager</option>
                                     <option value="HR/Admin" {{ old('role') == 'HR/Admin' ? 'selected' : '' }}>HR/Admin</option>
@@ -49,7 +49,7 @@
                             <!-- Department -->
                             <div>
                                 <x-input-label for="department_id" :value="__('Department')" />
-                                <select id="department_id" name="department_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
+                                <select id="department_id" name="department_id" class="mt-1 block w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm" required>
                                     <option value="">Select Department</option>
                                     @foreach($departments as $dept)
                                         <option value="{{ $dept->id }}" {{ old('department_id') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
@@ -75,7 +75,7 @@
                             <!-- Manager -->
                             <div>
                                 <x-input-label for="manager_id" :value="__('Reporting Manager')" />
-                                <select id="manager_id" name="manager_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="manager_id" name="manager_id" class="mt-1 block w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm">
                                     <option value="">No Manager (Top Level)</option>
                                     @foreach($managers as $manager)
                                         <option value="{{ $manager->id }}" {{ old('manager_id') == $manager->id ? 'selected' : '' }}>{{ $manager->name }} ({{ $manager->role }})</option>
@@ -85,7 +85,7 @@
                             </div>
                         </div>
 
-                        <hr class="my-6 border-gray-200">
+                        <hr class="my-6 border-gray-200 dark:border-slate-700">
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Password -->
@@ -104,7 +104,7 @@
                         </div>
 
                         <div class="flex items-center justify-end mt-6 space-x-4">
-                            <a href="{{ route('employees.index') }}" class="text-sm text-gray-600 hover:text-gray-900 underline">
+                            <a href="{{ route('employees.index') }}" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 underline">
                                 {{ __('Cancel') }}
                             </a>
                             <x-primary-button>

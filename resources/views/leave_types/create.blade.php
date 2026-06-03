@@ -1,15 +1,15 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
             {{ __('Add New Leave Type') }}
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <h1 class="text-3xl font-black text-center text-gray-900 mb-6">Create Leave Type</h1>
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
-                <div class="p-6 text-gray-900">
+            <p class="text-center text-gray-600 dark:text-gray-400 mb-6 max-w-3xl mx-auto text-sm leading-relaxed">Configure a new leave category. Specify its annual allowance and roll-over rules to <strong>automate employee leave balance calculations</strong>.</p>
+            <div class="bg-white dark:bg-slate-800 overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 dark:border-slate-700">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
                     <form method="POST" action="{{ route('leave-types.store') }}" class="space-y-6 max-w-xl">
                         @csrf
 
@@ -30,8 +30,8 @@
                         <!-- Carry Forward -->
                         <div class="block">
                             <label for="carry_forward" class="inline-flex items-center">
-                                <input id="carry_forward" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="carry_forward" value="1" {{ old('carry_forward') ? 'checked' : '' }}>
-                                <span class="ms-2 text-sm text-gray-600">{{ __('Allow Carry Forward to Next Year') }}</span>
+                                <input id="carry_forward" type="checkbox" class="rounded border-gray-300 dark:border-slate-700 dark:bg-slate-900 text-indigo-600 shadow-sm focus:ring-indigo-500 focus:ring-offset-white dark:focus:ring-offset-slate-800" name="carry_forward" value="1" {{ old('carry_forward') ? 'checked' : '' }}>
+                                <span class="ms-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Allow Carry Forward to Next Year') }}</span>
                             </label>
                             <x-input-error class="mt-2" :messages="$errors->get('carry_forward')" />
                         </div>
@@ -39,13 +39,13 @@
                         <!-- Description -->
                         <div>
                             <x-input-label for="description" :value="__('Description (Optional)')" />
-                            <textarea id="description" name="description" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" rows="3">{{ old('description') }}</textarea>
+                            <textarea id="description" name="description" class="mt-1 block w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm" rows="3">{{ old('description') }}</textarea>
                             <x-input-error class="mt-2" :messages="$errors->get('description')" />
                         </div>
 
                         <div class="flex items-center gap-4">
                             <x-primary-button>{{ __('Save Leave Type') }}</x-primary-button>
-                            <a href="{{ route('leave-types.index') }}" class="text-sm text-gray-600 hover:text-gray-900 underline">
+                            <a href="{{ route('leave-types.index') }}" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 underline">
                                 {{ __('Cancel') }}
                             </a>
                         </div>

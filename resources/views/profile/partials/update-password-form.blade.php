@@ -1,10 +1,10 @@
 <section x-data="{ showPasswords: false }">
     <header>
-        <h2 class="text-lg font-medium text-gray-900">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
             {{ __('Update Password') }}
         </h2>
 
-        <p class="mt-1 text-sm text-gray-600">
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
             {{ __('Ensure your account is using a long, random password to stay secure.') }}
         </p>
     </header>
@@ -34,8 +34,8 @@
         @if(Auth::user()->isManager() || Auth::user()->isAdmin())
         <div class="block mt-4">
             <label for="toggle_show_passwords" class="inline-flex items-center">
-                <input id="toggle_show_passwords" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" x-model="showPasswords">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Show passwords') }}</span>
+                <input id="toggle_show_passwords" type="checkbox" class="rounded border-gray-300 dark:border-slate-700 dark:bg-slate-900 text-indigo-600 shadow-sm focus:ring-indigo-500 focus:ring-offset-white dark:focus:ring-offset-slate-800" x-model="showPasswords">
+                <span class="ms-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Show passwords') }}</span>
             </label>
         </div>
         @endif
@@ -49,7 +49,7 @@
                     x-show="show"
                     x-transition
                     x-init="setTimeout(() => show = false, 2000)"
-                    class="text-sm text-gray-600"
+                    class="text-sm text-gray-600 dark:text-gray-400"
                 >{{ __('Saved.') }}</p>
             @endif
         </div>
