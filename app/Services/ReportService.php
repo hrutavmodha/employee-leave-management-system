@@ -35,26 +35,18 @@ class ReportService
     public function getDepartmentReport()
     {
         return \Illuminate\Support\Facades\Cache::remember('reports.departments', 3600, function () {
-            return Department::withCount(['users as total_employees'])
-                ->get()
-                ->map(function ($dept) {
-                    $stats = LeaveRequest::whereHas('user', function ($q) use ($dept) {
-                        $q->where('department_id', $dept->id);
-                    })
-                    ->whereYear('start_date', date('Y'))
-                    ->selectRaw("
-                        SUM(days_requested) as total,
-                        SUM(CASE WHEN status = 'Approved' THEN days_requested ELSE 0 END) as approved,
-                        SUM(CASE WHEN status = 'Rejected' THEN days_requested ELSE 0 END) as rejected
-                    ")
-                    ->first();
-
-                    $dept->total_leaves = $stats->total ?? 0;
-                    $dept->approved_leaves = $stats->approved ?? 0;
-                    $dept->rejected_leaves = $stats->rejected ?? 0;
-
-                    return $dept;
-                });
+            return Department::leftJoin('users', 'departments.id', '=', 'users.department_id')
+                ->leftJoin('leave_requests', function ($join) {
+                    $join->on('users.id', '=', 'leave_requests.user_id')
+                         ->whereYear('leave_requests.start_date', date('Y'));
+                })
+                ->select('departments.id', 'departments.name')
+                ->selectRaw('COUNT(DISTINCT users.id) as total_employees')
+                ->selectRaw('COALESCE(SUM(leave_requests.days_requested), 0) as total_leaves')
+                ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Approved' THEN leave_requests.days_requested ELSE 0 END), 0) as approved_leaves")
+                ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Rejected' THEN leave_requests.days_requested ELSE 0 END), 0) as rejected_leaves")
+                ->groupBy('departments.id', 'departments.name')
+                ->get();
         });
     }
 
