@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attachment extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = [
         'leave_request_id',
         'file_name',

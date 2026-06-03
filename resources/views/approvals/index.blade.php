@@ -43,6 +43,16 @@
                                         <span class="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-slate-900/50 text-blue-700 dark:text-blue-400 border dark:border-slate-700 font-bold text-xs">{{ $request->leaveType->name }}</span>
                                         <div class="text-sm mt-1 font-bold dark:text-gray-200">{{ $request->days_requested }} Days</div>
                                         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $request->start_date->format('M d') }} - {{ $request->end_date->format('M d, Y') }}</div>
+                                        @if($request->attachments->isNotEmpty())
+                                            <div class="mt-2 flex flex-col gap-0.5">
+                                                @foreach($request->attachments as $attachment)
+                                                    <a href="{{ route('leaves.attachment', [$request, $attachment]) }}" target="_blank" class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                                                        <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                        {{ $attachment->file_name }}
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4">
                                         <!-- Form start -->

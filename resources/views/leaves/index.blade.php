@@ -43,7 +43,17 @@
                                 @forelse ($requests as $request)
                                 <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition duration-150">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
-                                        {{ $request->leaveType->name }}
+                                        <div>{{ $request->leaveType->name }}</div>
+                                        @if($request->attachments->isNotEmpty())
+                                            <div class="mt-1 flex flex-col gap-0.5">
+                                                @foreach($request->attachments as $attachment)
+                                                    <a href="{{ route('leaves.attachment', [$request, $attachment]) }}" target="_blank" class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                                                        <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                        {{ $attachment->file_name }}
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         {{ $request->start_date->format('M d, Y') }} - {{ $request->end_date->format('M d, Y') }}

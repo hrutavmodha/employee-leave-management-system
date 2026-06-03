@@ -76,7 +76,7 @@ class LeaveController extends Controller
         ]);
 
         if ($request->hasFile('attachment')) {
-            $path = $request->file('attachment')->store('attachments', 'public');
+            $path = $request->file('attachment')->store('attachments', 'local');
             $leaveRequest->attachments()->create([
                 'file_name' => $request->file('attachment')->getClientOriginalName(),
                 'file_path' => $path,
@@ -98,5 +98,38 @@ class LeaveController extends Controller
         });
 
         return redirect()->route('leaves.index')->with('success', 'Leave request cancelled.');
+    }
+
+    /**
+     * Download or view a leave request attachment securely with authorization checks.
+     */
+    public function viewAttachment(LeaveRequest $leaveRequest, \App\Models\Attachment $attachment)
+    {
+        $user = Auth::user();
+
+        // 1. Employee who created it can view it
+        // 2. Manager of the employee who created it can view it
+        // 3. HR/Admin can view it
+        $isOwner = $leaveRequest->user_id === $user->id;
+        $isManager = $user->isManager() && $leaveRequest->user->manager_id === $user->id;
+        $isAdmin = $user->isAdmin();
+
+        if (!$isOwner && !$isManager && !$isAdmin) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Verify attachment belongs to this leave request
+        if ($attachment->leave_request_id !== $leaveRequest->id) {
+            abort(404, 'Attachment not found.');
+        }
+
+        $path = $attachment->file_path;
+        
+        // Verify file exists on local storage disk
+        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+            abort(404, 'File not found.');
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path, $attachment->file_name);
     }
 }

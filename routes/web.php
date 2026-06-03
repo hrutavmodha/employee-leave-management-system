@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leaves/apply', [LeaveController::class, 'create'])->name('leaves.create');
     Route::post('/leaves', [LeaveController::class, 'store'])->name('leaves.store');
     Route::post('/leaves/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->name('leaves.cancel');
+    Route::get('/leaves/{leaveRequest}/attachments/{attachment}', [LeaveController::class, 'viewAttachment'])->name('leaves.attachment');
 
     // Approval Workflow (Managers and HR/Admin)
     Route::middleware('role:Manager,HR/Admin')->group(function () {
