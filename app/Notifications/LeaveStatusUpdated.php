@@ -40,10 +40,10 @@ class LeaveStatusUpdated extends Notification implements ShouldQueue
         $status = $this->leaveRequest->status;
         $managerComment = $this->leaveRequest->manager_comment;
 
-        // Dynamically build the URL from env variables: Protocol://Domain/Route
-        $protocol = rtrim(env('APP_PROTOCOL', 'http'), ':/');
-        $domain = rtrim(env('APP_DOMAIN', 'localhost:8000'), '/');
-        $route = ltrim(env('APP_LEAVES_ROUTE', 'leaves'), '/');
+        // Build the URL from cached config values: Protocol://Domain/Route
+        $protocol = rtrim(config('app.protocol', 'http'), ':/');
+        $domain = rtrim(config('app.domain', 'localhost:8000'), '/');
+        $route = 'leaves';
         
         $url = "{$protocol}://{$domain}/{$route}";
 

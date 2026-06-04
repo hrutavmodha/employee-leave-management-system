@@ -37,10 +37,10 @@ class LeaveRequestSubmitted extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        // Dynamically build the URL from env variables: Protocol://Domain/Route
-        $protocol = rtrim(env('APP_PROTOCOL', 'http'), ':/');
-        $domain = rtrim(env('APP_DOMAIN', 'localhost:8000'), '/');
-        $route = ltrim(env('APP_APPROVALS_ROUTE', 'approvals'), '/');
+        // Build the URL from cached config values: Protocol://Domain/Route
+        $protocol = rtrim(config('app.protocol', 'http'), ':/');
+        $domain = rtrim(config('app.domain', 'localhost:8000'), '/');
+        $route = 'approvals';
         
         $url = "{$protocol}://{$domain}/{$route}";
 

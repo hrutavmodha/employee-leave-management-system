@@ -126,4 +126,17 @@ return [
         'table' => 'failed_jobs',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Queue Flush Threshold
+    |--------------------------------------------------------------------------
+    |
+    | The minimum number of pending jobs that must accumulate before the
+    | application spawns a background queue worker. Registered here so
+    | that `php artisan config:cache` does not break the threshold check.
+    |
+    */
+
+    'flush_threshold' => (int) env('QUEUE_FLUSH_THRESHOLD', 1),
+
 ];

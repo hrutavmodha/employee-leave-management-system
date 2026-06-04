@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | ELMS Notification URL Components
+    |--------------------------------------------------------------------------
+    |
+    | These values are used to construct notification email action URLs.
+    | They must be registered here (not read via env() at runtime) so
+    | that `php artisan config:cache` does not break notification links.
+    |
+    */
+
+    'protocol' => env('APP_PROTOCOL', 'http'),
+    'domain' => env('APP_DOMAIN', 'localhost:8000'),
+
 ];

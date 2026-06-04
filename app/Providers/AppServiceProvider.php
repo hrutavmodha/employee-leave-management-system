@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(JobQueued::class, function (JobQueued $event) {
-            $threshold = env('QUEUE_FLUSH_THRESHOLD', 1);
+            $threshold = config('queue.flush_threshold', 1);
             $jobCount = DB::table('jobs')->count();
 
             if ($jobCount >= $threshold) {
