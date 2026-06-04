@@ -78,12 +78,12 @@
                                     {{ __('Country') }}
                                 </label>
                                 <select name="country" required
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 rounded text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                    <option value="IN" selected>India (IN)</option>
-                                    <option value="US">United States (US)</option>
-                                    <option value="GB">United Kingdom (GB)</option>
-                                    <option value="CA">Canada (CA)</option>
-                                    <option value="AU">Australia (AU)</option>
+                                        class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
+                                    <option value="IN" selected class="dark:bg-slate-900">India (IN)</option>
+                                    <option value="US" class="dark:bg-slate-900">United States (US)</option>
+                                    <option value="GB" class="dark:bg-slate-900">United Kingdom (GB)</option>
+                                    <option value="CA" class="dark:bg-slate-900">Canada (CA)</option>
+                                    <option value="AU" class="dark:bg-slate-900">Australia (AU)</option>
                                 </select>
                             </div>
 
@@ -92,14 +92,14 @@
                                     {{ __('Year') }}
                                 </label>
                                 <select name="year" required
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 rounded text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                        class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
                                     @for($y = date('Y') - 1; $y <= date('Y') + 2; $y++)
-                                        <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                        <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }} class="dark:bg-slate-900">{{ $y }}</option>
                                     @endfor
                                 </select>
                             </div>
 
-                            <button type="submit" class="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm transition ease-in-out duration-150">
+                            <button type="submit" class="w-full bg-blue-600 dark:bg-slate-100 hover:bg-blue-700 dark:hover:bg-white text-white dark:text-slate-900 font-bold py-2 px-4 rounded text-sm transition ease-in-out duration-150">
                                 {{ __('Fetch & Import Holidays') }}
                             </button>
                         </form>
@@ -123,7 +123,7 @@
                                 {{ __('Holiday Name') }}
                             </label>
                             <input type="text" name="name" id="name" required placeholder="e.g. Christmas Day"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 rounded text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                   class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
                             @error('name')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
@@ -134,7 +134,7 @@
                                 {{ __('Select Date from Calendar') }}
                             </label>
                             <input type="date" name="date" id="date" required
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 rounded text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                   class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
                             @error('date')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
