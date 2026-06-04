@@ -92,4 +92,90 @@ class LeaveModuleTest extends TestCase
         $this->assertEquals(10, $noCarryBalance2027->remaining_days);
         $this->assertEquals(10, $noCarryBalance2027->allocated_days);
     }
+
+    public function test_employee_can_apply_for_cross_year_leave_successfully()
+    {
+        $user = User::factory()->create();
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2027,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2028,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        $response = $this->actingAs($user)->post('/leaves', [
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2027-12-25',
+            'end_date' => '2028-01-05',
+            'reason' => 'Cross year vacation',
+        ]);
+
+        $response->assertRedirect(route('leaves.index'));
+        $this->assertDatabaseHas('leave_requests', [
+            'user_id' => $user->id,
+            'days_requested' => 12,
+            'status' => 'Pending'
+        ]);
+    }
+
+    public function test_employee_cannot_apply_for_cross_year_leave_when_one_year_insufficient()
+    {
+        $user = User::factory()->create();
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2027,
+            'allocated_days' => 10,
+            'used_days' => 5,
+            'remaining_days' => 5, // We need 7 for 2027-12-25 to 2027-12-31
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2028,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10, // We need 5 for 2028-01-01 to 2028-01-05
+        ]);
+
+        $response = $this->actingAs($user)->post('/leaves', [
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2027-12-25',
+            'end_date' => '2028-01-05',
+            'reason' => 'Cross year vacation failed',
+        ]);
+
+        $response->assertSessionHasErrors(['end_date']);
+        $errors = session('errors')->get('end_date');
+        $this->assertStringContainsString('Insufficient balance: You only have 5 days left for the year 2027, but you requested 7 days.', $errors[0]);
+
+        $this->assertDatabaseMissing('leave_requests', [
+            'user_id' => $user->id,
+            'days_requested' => 12,
+        ]);
+    }
 }

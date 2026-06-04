@@ -150,4 +150,104 @@ class LeaveCalculationServiceTest extends TestCase
         $updatedBalance = LeaveBalance::find($this->balance->id);
         $this->assertEquals(10, $updatedBalance->remaining_days);
     }
+
+    /**
+     * Test successful cross-year balance deduction.
+     */
+    public function test_deduct_balance_cross_year_splits_successfully(): void
+    {
+        // Arrange
+        $balance2027 = LeaveBalance::create([
+            'user_id' => $this->user->id,
+            'leave_type_id' => $this->leaveType->id,
+            'year' => 2027,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        $balance2028 = LeaveBalance::create([
+            'user_id' => $this->user->id,
+            'leave_type_id' => $this->leaveType->id,
+            'year' => 2028,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        $request = new LeaveRequest([
+            'user_id' => $this->user->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => '2027-12-25',
+            'end_date' => '2028-01-05',
+            'days_requested' => 12,
+            'status' => 'Pending',
+        ]);
+        $request->user = $this->user;
+
+        // Act
+        DB::transaction(function () use ($request) {
+            $this->service->deductBalance($request);
+        });
+
+        // Assert
+        $balance2027->refresh();
+        $balance2028->refresh();
+
+        $this->assertEquals(7, $balance2027->used_days);
+        $this->assertEquals(3, $balance2027->remaining_days);
+
+        $this->assertEquals(5, $balance2028->used_days);
+        $this->assertEquals(5, $balance2028->remaining_days);
+    }
+
+    /**
+     * Test successful cross-year balance refund.
+     */
+    public function test_refund_balance_cross_year_refunds_successfully(): void
+    {
+        // Arrange
+        $balance2027 = LeaveBalance::create([
+            'user_id' => $this->user->id,
+            'leave_type_id' => $this->leaveType->id,
+            'year' => 2027,
+            'allocated_days' => 10,
+            'used_days' => 7,
+            'remaining_days' => 3,
+        ]);
+
+        $balance2028 = LeaveBalance::create([
+            'user_id' => $this->user->id,
+            'leave_type_id' => $this->leaveType->id,
+            'year' => 2028,
+            'allocated_days' => 10,
+            'used_days' => 5,
+            'remaining_days' => 5,
+        ]);
+
+        $request = new LeaveRequest([
+            'user_id' => $this->user->id,
+            'leave_type_id' => $this->leaveType->id,
+            'start_date' => '2027-12-25',
+            'end_date' => '2028-01-05',
+            'days_requested' => 12,
+            'status' => 'Approved',
+        ]);
+        $request->user = $this->user;
+
+        // Act
+        DB::transaction(function () use ($request) {
+            $this->service->refundBalance($request);
+        });
+
+        // Assert
+        $balance2027->refresh();
+        $balance2028->refresh();
+
+        $this->assertEquals(0, $balance2027->used_days);
+        $this->assertEquals(10, $balance2027->remaining_days);
+
+        $this->assertEquals(0, $balance2028->used_days);
+        $this->assertEquals(10, $balance2028->remaining_days);
+    }
 }

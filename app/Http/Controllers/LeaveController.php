@@ -56,13 +56,21 @@ class LeaveController extends Controller
         $start = Carbon::parse($request->start_date)->startOfDay();
         $end = Carbon::parse($request->end_date)->startOfDay();
         $daysRequested = $start->diffInDays($end) + 1;
-        $year = $start->year;
 
-        // Use the Service to get or create the balance record
-        $balance = $this->calculationService->getOrCreateBalance(Auth::user(), $request->leave_type_id, $year);
+        $daysPerYear = $this->calculationService->calculateDaysPerYear($start, $end);
 
-        if ($balance->remaining_days < $daysRequested) {
-            return back()->withErrors(['end_date' => "Insufficient balance: You only have {$balance->remaining_days} days left for the year {$year}, but you requested {$daysRequested} days."])->withInput();
+        foreach ($daysPerYear as $year => $days) {
+            $balance = $this->calculationService->getOrCreateBalance(
+                Auth::user(),
+                $request->leave_type_id,
+                $year
+            );
+
+            if ($balance->remaining_days < $days) {
+                $msg = "Insufficient balance: You only have {$balance->remaining_days} " .
+                    "days left for the year {$year}, but you requested {$days} days.";
+                return back()->withErrors(['end_date' => $msg])->withInput();
+            }
         }
 
         $leaveRequest = LeaveRequest::create([

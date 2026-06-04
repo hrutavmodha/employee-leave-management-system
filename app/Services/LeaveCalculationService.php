@@ -7,6 +7,7 @@ use App\Models\LeaveType;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use Exception;
+use Carbon\Carbon;
 
 class LeaveCalculationService
 {
@@ -69,34 +70,66 @@ class LeaveCalculationService
     }
 
     /**
+     * Calculate the distribution of leave days per year for a given date range.
+     *
+     * @param \Carbon\Carbon $start
+     * @param \Carbon\Carbon $end
+     * @return array<int, int> An array mapping year => days requested in that year
+     */
+    public function calculateDaysPerYear(Carbon $start, Carbon $end): array
+    {
+        $daysPerYear = [];
+        $current = $start->copy()->startOfDay();
+        $endLimit = $end->copy()->startOfDay();
+
+        while ($current->lte($endLimit)) {
+            $year = $current->year;
+            if (!isset($daysPerYear[$year])) {
+                $daysPerYear[$year] = 0;
+            }
+            $daysPerYear[$year]++;
+            $current->addDay();
+        }
+
+        return $daysPerYear;
+    }
+
+    /**
      * Deduct days from user balance when leave is approved.
      */
     public function deductBalance(LeaveRequest $request)
     {
-        $year = $request->start_date->year;
         $user = $request->user;
+        $start = Carbon::parse($request->start_date)->startOfDay();
+        $end = Carbon::parse($request->end_date)->startOfDay();
+        $daysPerYear = $this->calculateDaysPerYear($start, $end);
 
-        // Ensure the balance record is initialized
-        $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+        foreach ($daysPerYear as $year => $days) {
+            // Ensure the balance record is initialized
+            $this->getOrCreateBalance($user, $request->leave_type_id, $year);
 
-        // Fetch with pessimistic locking to serialize concurrent transactions
-        $balance = LeaveBalance::where('user_id', $user->id)
-            ->where('leave_type_id', $request->leave_type_id)
-            ->where('year', $year)
-            ->lockForUpdate()
-            ->first();
+            // Fetch with pessimistic locking to serialize concurrent transactions
+            $balance = LeaveBalance::where('user_id', $user->id)
+                ->where('leave_type_id', $request->leave_type_id)
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->first();
 
-        if (!$balance) {
-            throw new Exception("Leave balance record not found.");
+            if (!$balance) {
+                throw new Exception("Leave balance record not found for year {$year}.");
+            }
+
+            if ($balance->remaining_days < $days) {
+                throw new Exception(
+                    "Insufficient balance. User has {$balance->remaining_days} " .
+                    "days for year {$year}, but requested {$days}."
+                );
+            }
+
+            $balance->used_days += $days;
+            $balance->remaining_days -= $days;
+            $balance->save();
         }
-
-        if ($balance->remaining_days < $request->days_requested) {
-            throw new Exception("Insufficient balance. User has {$balance->remaining_days} days, but requested {$request->days_requested}.");
-        }
-
-        $balance->used_days += $request->days_requested;
-        $balance->remaining_days -= $request->days_requested;
-        $balance->save();
     }
 
     /**
@@ -104,25 +137,32 @@ class LeaveCalculationService
      */
     public function refundBalance(LeaveRequest $request)
     {
-        $year = $request->start_date->year;
         $user = $request->user;
+        $start = Carbon::parse($request->start_date)->startOfDay();
+        $end = Carbon::parse($request->end_date)->startOfDay();
+        $daysPerYear = $this->calculateDaysPerYear($start, $end);
 
-        // Ensure the balance record is initialized
-        $this->getOrCreateBalance($user, $request->leave_type_id, $year);
+        foreach ($daysPerYear as $year => $days) {
+            // Ensure the balance record is initialized
+            $this->getOrCreateBalance($user, $request->leave_type_id, $year);
 
-        // Fetch with pessimistic locking to serialize concurrent transactions
-        $balance = LeaveBalance::where('user_id', $user->id)
-            ->where('leave_type_id', $request->leave_type_id)
-            ->where('year', $year)
-            ->lockForUpdate()
-            ->first();
+            // Fetch with pessimistic locking to serialize concurrent transactions
+            $balance = LeaveBalance::where('user_id', $user->id)
+                ->where('leave_type_id', $request->leave_type_id)
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->first();
 
-        if (!$balance) {
-            throw new Exception("Leave balance record not found.");
+            if (!$balance) {
+                throw new Exception("Leave balance record not found for year {$year}.");
+            }
+
+            $balance->used_days = max(0, $balance->used_days - $days);
+            $balance->remaining_days = min(
+                $balance->allocated_days,
+                $balance->remaining_days + $days
+            );
+            $balance->save();
         }
-
-        $balance->used_days = max(0, $balance->used_days - $request->days_requested);
-        $balance->remaining_days = min($balance->allocated_days, $balance->remaining_days + $request->days_requested);
-        $balance->save();
     }
 }
