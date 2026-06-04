@@ -63,7 +63,26 @@ class LeaveRequest extends Model
         };
 
         static::saved($clearCache);
-        static::deleted($clearCache);
+        
+        static::created(function (LeaveRequest $request) {
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            \Illuminate\Support\Facades\Log::info("Audit log - Leave request submitted: ID={$request->id}, UserID={$request->user_id}, TypeID={$request->leave_type_id}, Days={$request->days_requested}, Actor={$actor}");
+        });
+
+        static::updated(function (LeaveRequest $request) {
+            if ($request->isDirty('status')) {
+                $oldStatus = $request->getOriginal('status');
+                $newStatus = $request->status;
+                $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+                \Illuminate\Support\Facades\Log::info("Audit log - Leave request status changed: ID={$request->id}, UserID={$request->user_id}, From={$oldStatus}, To={$newStatus}, Actor={$actor}");
+            }
+        });
+
+        static::deleted(function (LeaveRequest $request) use ($clearCache) {
+            $clearCache($request);
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            \Illuminate\Support\Facades\Log::info("Audit log - Leave request deleted: ID={$request->id}, UserID={$request->user_id}, Actor={$actor}");
+        });
 
         /**
          * Delete attachment files from disk before the database

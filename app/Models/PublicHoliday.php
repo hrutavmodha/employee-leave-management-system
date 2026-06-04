@@ -17,16 +17,27 @@ class PublicHoliday extends Model
 
     protected static function booted()
     {
-        static::saved(function () {
+        $clearCache = function () {
             \Illuminate\Support\Facades\Cache::forget('reports.employees');
             \Illuminate\Support\Facades\Cache::forget('reports.departments');
             \Illuminate\Support\Facades\Cache::forget('reports.monthly');
+        };
+
+        $logHoliday = function (PublicHoliday $holiday, string $action) {
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            $dateStr = $holiday->date instanceof \Carbon\Carbon ? $holiday->date->format('Y-m-d') : $holiday->date;
+            \Illuminate\Support\Facades\Log::info("Audit log - Public holiday {$action}: ID={$holiday->id}, Name={$holiday->name}, Date={$dateStr}, Actor={$actor}");
+        };
+
+        static::saved(function (PublicHoliday $holiday) use ($clearCache, $logHoliday) {
+            $clearCache();
+            $action = $holiday->wasRecentlyCreated ? 'created' : 'updated';
+            $logHoliday($holiday, $action);
         });
 
-        static::deleted(function () {
-            \Illuminate\Support\Facades\Cache::forget('reports.employees');
-            \Illuminate\Support\Facades\Cache::forget('reports.departments');
-            \Illuminate\Support\Facades\Cache::forget('reports.monthly');
+        static::deleted(function (PublicHoliday $holiday) use ($clearCache, $logHoliday) {
+            $clearCache();
+            $logHoliday($holiday, 'deleted');
         });
     }
 }

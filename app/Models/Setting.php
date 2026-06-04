@@ -47,10 +47,26 @@ class Setting extends Model
 
     protected static function booted()
     {
-        static::saved(function () {
+        $clearCache = function () {
             \Illuminate\Support\Facades\Cache::forget('reports.employees');
             \Illuminate\Support\Facades\Cache::forget('reports.departments');
             \Illuminate\Support\Facades\Cache::forget('reports.monthly');
+        };
+
+        $logSetting = function (Setting $setting, string $action) {
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            \Illuminate\Support\Facades\Log::info("Audit log - Setting {$action}: ID={$setting->id}, Key={$setting->key}, Actor={$actor}");
+        };
+
+        static::saved(function (Setting $setting) use ($clearCache, $logSetting) {
+            $clearCache();
+            $action = $setting->wasRecentlyCreated ? 'created' : 'updated';
+            $logSetting($setting, $action);
+        });
+
+        static::deleted(function (Setting $setting) use ($clearCache, $logSetting) {
+            $clearCache();
+            $logSetting($setting, 'deleted');
         });
     }
 }

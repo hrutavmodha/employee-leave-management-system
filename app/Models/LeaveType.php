@@ -34,7 +34,20 @@ class LeaveType extends Model
             \Illuminate\Support\Facades\Cache::forget('leave_types.all');
         };
 
-        static::saved($clearCache);
-        static::deleted($clearCache);
+        $logChange = function (LeaveType $type, string $action) {
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            \Illuminate\Support\Facades\Log::info("Audit log - Leave policy/type {$action}: ID={$type->id}, Name={$type->name}, Actor={$actor}");
+        };
+
+        static::saved(function (LeaveType $leaveType) use ($clearCache, $logChange) {
+            $clearCache($leaveType);
+            $action = $leaveType->wasRecentlyCreated ? 'created' : 'updated';
+            $logChange($leaveType, $action);
+        });
+
+        static::deleted(function (LeaveType $leaveType) use ($clearCache, $logChange) {
+            $clearCache($leaveType);
+            $logChange($leaveType, 'deleted');
+        });
     }
 }

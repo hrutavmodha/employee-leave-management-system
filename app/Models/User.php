@@ -149,7 +149,17 @@ class User extends Authenticatable
         };
 
         static::saved($clearCache);
-        static::deleted($clearCache);
+        
+        static::created(function (User $user) {
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            \Illuminate\Support\Facades\Log::info("Audit log - Employee created: ID={$user->id}, Email={$user->email}, Role={$user->role}, Actor={$actor}");
+        });
+
+        static::deleted(function (User $user) use ($clearCache) {
+            $clearCache($user);
+            $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
+            \Illuminate\Support\Facades\Log::info("Audit log - Employee deleted: ID={$user->id}, Email={$user->email}, Role={$user->role}, Actor={$actor}");
+        });
 
         /**
          * Prune orphaned storage assets before the database cascade
