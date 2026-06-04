@@ -71,7 +71,7 @@
                             Automatically fetch and populate public holidays for a country and year using the public holiday registry.
                         </p>
 
-                        <form action="{{ route('settings.holidays.import') }}" method="POST" class="space-y-4">
+                        <form action="{{ route('settings.holidays.store') }}" method="POST" class="space-y-4">
                             @csrf
                             <div>
                                 <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
@@ -81,8 +81,8 @@
                                         class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
                                     @foreach($countries as $c)
                                         @php
-                                            $cKey = $c['key'] ?? '';
-                                            $cValue = $c['value'] ?? '';
+                                            $cKey = $c['countryCode'] ?? '';
+                                            $cValue = $c['name'] ?? '';
                                         @endphp
                                         <option value="{{ $cKey }}" {{ $cKey == 'IN' ? 'selected' : '' }} class="dark:bg-slate-900">
                                             {{ $cValue }} ({{ $cKey }})
@@ -97,9 +97,9 @@
                                 </label>
                                 <select name="year" required
                                         class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
-                                    @for($y = date('Y') - 1; $y <= date('Y') + 2; $y++)
+                                    @foreach($years as $y)
                                         <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }} class="dark:bg-slate-900">{{ $y }}</option>
-                                    @endfor
+                                    @endforeach
                                 </select>
                             </div>
 

@@ -19,8 +19,8 @@ class HolidaySettingTest extends TestCase
         \Illuminate\Support\Facades\Http::fake([
             'https://date.nager.at/api/v3/AvailableCountries' =>
                 \Illuminate\Support\Facades\Http::response([
-                    ['key' => 'IN', 'value' => 'India'],
-                    ['key' => 'US', 'value' => 'United States'],
+                    ['countryCode' => 'IN', 'name' => 'India'],
+                    ['countryCode' => 'US', 'name' => 'United States'],
                 ], 200),
             'https://date.nager.at/api/v3/PublicHolidays/*' =>
                 \Illuminate\Support\Facades\Http::response([
@@ -105,7 +105,7 @@ class HolidaySettingTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'HR/Admin']);
 
-        $response = $this->actingAs($admin)->post(route('settings.holidays.import'), [
+        $response = $this->actingAs($admin)->post(route('settings.holidays.store'), [
             'country' => 'IN',
             'year' => 2026,
         ]);
