@@ -44,4 +44,13 @@ class Setting extends Model
             ['value' => $encodedValue]
         );
     }
+
+    protected static function booted()
+    {
+        static::saved(function () {
+            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \Illuminate\Support\Facades\Cache::forget('reports.departments');
+            \Illuminate\Support\Facades\Cache::forget('reports.monthly');
+        });
+    }
 }

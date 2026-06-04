@@ -12,18 +12,29 @@ class ReportService
     public function getEmployeeReport()
     {
         return \Illuminate\Support\Facades\Cache::remember('reports.employees', 3600, function () {
+            $currentYear = (int) date('Y');
+            $yearStart = "{$currentYear}-01-01";
+            $yearEnd = "{$currentYear}-12-31";
+
             return User::with([
                 'department',
-                'leaveBalances' => function ($query) {
-                    $query->where('year', date('Y'))->with('leaveType');
+                'leaveBalances' => function ($query) use ($currentYear) {
+                    $query->where('year', $currentYear)->with('leaveType');
+                },
+                'leaveRequests' => function ($query) use ($yearStart, $yearEnd) {
+                    $query->where('status', 'Approved')
+                          ->where('start_date', '<=', $yearEnd)
+                          ->where('end_date', '>=', $yearStart);
                 }
             ])
-            ->withSum(['leaveRequests as approved_leaves' => function ($query) {
-                $query->where('status', 'Approved')->whereYear('start_date', date('Y'));
-            }], 'days_requested')
             ->get()
-            ->map(function ($user) {
-                $user->approved_leaves = $user->approved_leaves ?? 0;
+            ->map(function ($user) use ($currentYear) {
+                $approvedLeaves = 0;
+                foreach ($user->leaveRequests as $req) {
+                    $dist = $this->getWorkingDaysDistribution($req);
+                    $approvedLeaves += $dist['years'][$currentYear] ?? 0;
+                }
+                $user->approved_leaves = $approvedLeaves;
                 return $user;
             });
         });
@@ -35,18 +46,45 @@ class ReportService
     public function getDepartmentReport()
     {
         return \Illuminate\Support\Facades\Cache::remember('reports.departments', 3600, function () {
-            return Department::leftJoin('users', 'departments.id', '=', 'users.department_id')
-                ->leftJoin('leave_requests', function ($join) {
-                    $join->on('users.id', '=', 'leave_requests.user_id')
-                         ->whereYear('leave_requests.start_date', date('Y'));
-                })
-                ->select('departments.id', 'departments.name')
-                ->selectRaw('COUNT(DISTINCT users.id) as total_employees')
-                ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Approved' THEN leave_requests.days_requested ELSE 0 END), 0) as total_leaves")
-                ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Approved' THEN leave_requests.days_requested ELSE 0 END), 0) as approved_leaves")
-                ->selectRaw("COALESCE(SUM(CASE WHEN leave_requests.status = 'Rejected' THEN leave_requests.days_requested ELSE 0 END), 0) as rejected_leaves")
-                ->groupBy('departments.id', 'departments.name')
-                ->get();
+            $currentYear = (int) date('Y');
+            $yearStart = "{$currentYear}-01-01";
+            $yearEnd = "{$currentYear}-12-31";
+
+            $departments = Department::with([
+                'users.leaveRequests' => function ($query) use ($yearStart, $yearEnd) {
+                    $query->whereIn('status', ['Approved', 'Rejected'])
+                          ->where('start_date', '<=', $yearEnd)
+                          ->where('end_date', '>=', $yearStart);
+                }
+            ])->get();
+
+            return $departments->map(function ($dept) use ($currentYear) {
+                $totalEmployees = $dept->users->count();
+                $approvedLeaves = 0;
+                $rejectedLeaves = 0;
+
+                foreach ($dept->users as $user) {
+                    foreach ($user->leaveRequests as $req) {
+                        $dist = $this->getWorkingDaysDistribution($req);
+                        $daysInYear = $dist['years'][$currentYear] ?? 0;
+                        if ($req->status === 'Approved') {
+                            $approvedLeaves += $daysInYear;
+                        } elseif ($req->status === 'Rejected') {
+                            $rejectedLeaves += $daysInYear;
+                        }
+                    }
+                }
+
+                $obj = new \stdClass();
+                $obj->id = $dept->id;
+                $obj->name = $dept->name;
+                $obj->total_employees = $totalEmployees;
+                $obj->total_leaves = $approvedLeaves;
+                $obj->approved_leaves = $approvedLeaves;
+                $obj->rejected_leaves = $rejectedLeaves;
+
+                return $obj;
+            });
         });
     }
 
@@ -59,15 +97,132 @@ class ReportService
     public function getMonthlyStats()
     {
         return \Illuminate\Support\Facades\Cache::remember('reports.monthly', 3600, function () {
-            $monthExpression = $this->monthExtractionSql('start_date');
+            $currentYear = (int) date('Y');
+            $yearStart = "{$currentYear}-01-01";
+            $yearEnd = "{$currentYear}-12-31";
 
-            return LeaveRequest::selectRaw("{$monthExpression} as month, SUM(days_requested) as count")
-                ->whereYear('start_date', date('Y'))
-                ->where('status', 'Approved')
-                ->groupBy('month')
-                ->orderBy('month')
+            $requests = LeaveRequest::where('status', 'Approved')
+                ->where('start_date', '<=', $yearEnd)
+                ->where('end_date', '>=', $yearStart)
                 ->get();
+
+            $monthCounts = [];
+
+            foreach ($requests as $req) {
+                $dist = $this->getWorkingDaysDistribution($req);
+                foreach ($dist['months'] as $monthKey => $days) {
+                    list($yr, $mo) = explode('-', $monthKey);
+                    if ((int)$yr === $currentYear) {
+                        $monthCounts[$mo] = ($monthCounts[$mo] ?? 0) + $days;
+                    }
+                }
+            }
+
+            $stats = [];
+            foreach ($monthCounts as $mo => $count) {
+                $obj = new \stdClass();
+                $obj->month = $mo;
+                $obj->count = $count;
+                $stats[] = $obj;
+            }
+
+            usort($stats, function ($a, $b) {
+                return strcmp($a->month, $b->month);
+            });
+
+            return collect($stats);
         });
+    }
+
+    /**
+     * Compute the distribution of working days per month/year for a given LeaveRequest.
+     *
+     * @param LeaveRequest $req
+     * @return array
+     */
+    private function getWorkingDaysDistribution(LeaveRequest $req): array
+    {
+        $start = \Carbon\Carbon::parse($req->start_date)->startOfDay();
+        $end = \Carbon\Carbon::parse($req->end_date)->startOfDay();
+        $daysRequested = (int) $req->days_requested;
+
+        $startYearMonth = $start->format('Y-m');
+        $endYearMonth = $end->format('Y-m');
+
+        if ($startYearMonth === $endYearMonth) {
+            $year = $start->year;
+            return [
+                'years' => [$year => $daysRequested],
+                'months' => [$startYearMonth => $daysRequested],
+            ];
+        }
+
+        $weekHolidays = array_map('intval', \App\Models\Setting::getVal('week_holidays', [0, 6]));
+        $publicHolidays = \App\Models\PublicHoliday::whereBetween('date', [
+            $start->toDateString(),
+            $end->toDateString()
+        ])->pluck('date')->map(function ($date) {
+            return $date instanceof \Carbon\Carbon
+                ? $date->format('Y-m-d')
+                : \Carbon\Carbon::parse($date)->format('Y-m-d');
+        })->toArray();
+
+        $calendarDays = [];
+        $totalCalendarWorkingDays = 0;
+
+        $current = $start->copy();
+        while ($current->lte($end)) {
+            // Check if it is a week holiday
+            if (in_array($current->dayOfWeek, $weekHolidays, true)) {
+                $current->addDay();
+                continue;
+            }
+
+            // Check if it is a public/company holiday
+            if (in_array($current->format('Y-m-d'), $publicHolidays, true)) {
+                $current->addDay();
+                continue;
+            }
+
+            $ym = $current->format('Y-m');
+            $calendarDays[$ym] = ($calendarDays[$ym] ?? 0) + 1;
+            $totalCalendarWorkingDays++;
+
+            $current->addDay();
+        }
+
+        $distribution = [
+            'years' => [],
+            'months' => [],
+        ];
+
+        if ($totalCalendarWorkingDays === 0) {
+            $year = $start->year;
+            $distribution['years'][$year] = $daysRequested;
+            $distribution['months'][$startYearMonth] = $daysRequested;
+            return $distribution;
+        }
+
+        $allocatedDays = 0;
+        $monthsList = array_keys($calendarDays);
+        $lastMonth = end($monthsList);
+
+        foreach ($calendarDays as $ym => $calWorkingDays) {
+            list($yr, $mo) = explode('-', $ym);
+            $yr = (int)$yr;
+
+            if ($ym === $lastMonth) {
+                $share = $daysRequested - $allocatedDays;
+            } else {
+                $share = (int) round(($calWorkingDays / $totalCalendarWorkingDays) * $daysRequested);
+                $allocatedDays += $share;
+            }
+
+            $distribution['months'][$ym] = $share;
+            $distribution['years'][$yr] = ($distribution['years'][$yr] ?? 0) + $share;
+        }
+
+        return $distribution;
     }
 
     /**
