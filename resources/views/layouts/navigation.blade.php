@@ -46,6 +46,9 @@
                     <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                         {{ __('Reports') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('settings.holidays')" :active="request()->routeIs('settings.holidays')">
+                        {{ __('Holidays') }}
+                    </x-nav-link>
                     @endif
                 </div>
             </div>
@@ -164,6 +167,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                 {{ __('Reports') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('settings.holidays')" :active="request()->routeIs('settings.holidays')">
+                {{ __('Holidays') }}
             </x-responsive-nav-link>
             @endif
         </div>

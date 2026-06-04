@@ -82,7 +82,29 @@ class LeaveCalculationService
         $current = $start->copy()->startOfDay();
         $endLimit = $end->copy()->startOfDay();
 
+        $weekHolidays = array_map('intval', \App\Models\Setting::getVal('week_holidays', [0, 6]));
+        $publicHolidays = \App\Models\PublicHoliday::whereBetween('date', [
+            $start->toDateString(),
+            $end->toDateString()
+        ])->pluck('date')->map(function ($date) {
+            return $date instanceof \Carbon\Carbon
+                ? $date->format('Y-m-d')
+                : \Carbon\Carbon::parse($date)->format('Y-m-d');
+        })->toArray();
+
         while ($current->lte($endLimit)) {
+            // Check if it is a week holiday
+            if (in_array($current->dayOfWeek, $weekHolidays, true)) {
+                $current->addDay();
+                continue;
+            }
+
+            // Check if it is a public/company holiday
+            if (in_array($current->format('Y-m-d'), $publicHolidays, true)) {
+                $current->addDay();
+                continue;
+            }
+
             $year = $current->year;
             if (!isset($daysPerYear[$year])) {
                 $daysPerYear[$year] = 0;

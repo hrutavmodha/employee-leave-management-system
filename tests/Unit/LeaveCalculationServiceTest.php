@@ -55,8 +55,8 @@ class LeaveCalculationServiceTest extends TestCase
         $request = new LeaveRequest([
             'user_id' => $this->user->id,
             'leave_type_id' => $this->leaveType->id,
-            'start_date' => now(),
-            'end_date' => now()->addDays(2),
+            'start_date' => '2026-06-01', // Monday
+            'end_date' => '2026-06-03', // Wednesday
             'days_requested' => 3,
             'status' => 'Pending',
         ]);
@@ -82,9 +82,9 @@ class LeaveCalculationServiceTest extends TestCase
         $request = new LeaveRequest([
             'user_id' => $this->user->id,
             'leave_type_id' => $this->leaveType->id,
-            'start_date' => now(),
-            'end_date' => now()->addDays(10),
-            'days_requested' => 12,
+            'start_date' => '2026-06-01', // Monday
+            'end_date' => '2026-06-12', // Friday (10 working days)
+            'days_requested' => 10,
             'status' => 'Pending',
         ]);
         $request->user = $this->user;
@@ -108,8 +108,8 @@ class LeaveCalculationServiceTest extends TestCase
         $request = new LeaveRequest([
             'user_id' => $this->user->id,
             'leave_type_id' => $this->leaveType->id,
-            'start_date' => now(),
-            'end_date' => now()->addDays(2),
+            'start_date' => '2026-06-01', // Monday
+            'end_date' => '2026-06-02', // Tuesday
             'days_requested' => 2,
             'status' => 'Approved',
         ]);
@@ -134,8 +134,8 @@ class LeaveCalculationServiceTest extends TestCase
         $request = new LeaveRequest([
             'user_id' => $this->user->id,
             'leave_type_id' => $this->leaveType->id,
-            'start_date' => now(),
-            'end_date' => now()->addDays(5),
+            'start_date' => '2026-06-01', // Monday
+            'end_date' => '2026-06-04', // Thursday
             'days_requested' => 4,
             'status' => 'Approved',
         ]);
@@ -180,7 +180,7 @@ class LeaveCalculationServiceTest extends TestCase
             'leave_type_id' => $this->leaveType->id,
             'start_date' => '2027-12-25',
             'end_date' => '2028-01-05',
-            'days_requested' => 12,
+            'days_requested' => 8,
             'status' => 'Pending',
         ]);
         $request->user = $this->user;
@@ -194,11 +194,11 @@ class LeaveCalculationServiceTest extends TestCase
         $balance2027->refresh();
         $balance2028->refresh();
 
-        $this->assertEquals(7, $balance2027->used_days);
-        $this->assertEquals(3, $balance2027->remaining_days);
+        $this->assertEquals(5, $balance2027->used_days);
+        $this->assertEquals(5, $balance2027->remaining_days);
 
-        $this->assertEquals(5, $balance2028->used_days);
-        $this->assertEquals(5, $balance2028->remaining_days);
+        $this->assertEquals(3, $balance2028->used_days);
+        $this->assertEquals(7, $balance2028->remaining_days);
     }
 
     /**
@@ -212,8 +212,8 @@ class LeaveCalculationServiceTest extends TestCase
             'leave_type_id' => $this->leaveType->id,
             'year' => 2027,
             'allocated_days' => 10,
-            'used_days' => 7,
-            'remaining_days' => 3,
+            'used_days' => 5,
+            'remaining_days' => 5,
         ]);
 
         $balance2028 = LeaveBalance::create([
@@ -221,8 +221,8 @@ class LeaveCalculationServiceTest extends TestCase
             'leave_type_id' => $this->leaveType->id,
             'year' => 2028,
             'allocated_days' => 10,
-            'used_days' => 5,
-            'remaining_days' => 5,
+            'used_days' => 3,
+            'remaining_days' => 7,
         ]);
 
         $request = new LeaveRequest([
@@ -230,7 +230,7 @@ class LeaveCalculationServiceTest extends TestCase
             'leave_type_id' => $this->leaveType->id,
             'start_date' => '2027-12-25',
             'end_date' => '2028-01-05',
-            'days_requested' => 12,
+            'days_requested' => 8,
             'status' => 'Approved',
         ]);
         $request->user = $this->user;

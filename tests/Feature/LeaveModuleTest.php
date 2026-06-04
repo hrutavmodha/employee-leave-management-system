@@ -22,8 +22,8 @@ class LeaveModuleTest extends TestCase
 
         $response = $this->actingAs($user)->post('/leaves', [
             'leave_type_id' => $leaveType->id,
-            'start_date' => now()->addDay()->format('Y-m-d'),
-            'end_date' => now()->addDays(3)->format('Y-m-d'),
+            'start_date' => '2026-06-08', // Monday
+            'end_date' => '2026-06-10', // Wednesday (3 working days)
             'reason' => 'Testing leave application',
         ]);
 
@@ -130,7 +130,7 @@ class LeaveModuleTest extends TestCase
         $response->assertRedirect(route('leaves.index'));
         $this->assertDatabaseHas('leave_requests', [
             'user_id' => $user->id,
-            'days_requested' => 12,
+            'days_requested' => 8,
             'status' => 'Pending'
         ]);
     }
@@ -150,7 +150,7 @@ class LeaveModuleTest extends TestCase
             'year' => 2027,
             'allocated_days' => 10,
             'used_days' => 5,
-            'remaining_days' => 5, // We need 7 for 2027-12-25 to 2027-12-31
+            'remaining_days' => 5, // We need 6 for 2027-12-24 to 2027-12-31
         ]);
 
         \App\Models\LeaveBalance::create([
@@ -159,23 +159,23 @@ class LeaveModuleTest extends TestCase
             'year' => 2028,
             'allocated_days' => 10,
             'used_days' => 0,
-            'remaining_days' => 10, // We need 5 for 2028-01-01 to 2028-01-05
+            'remaining_days' => 10, // We need 3 for 2028-01-01 to 2028-01-05
         ]);
 
         $response = $this->actingAs($user)->post('/leaves', [
             'leave_type_id' => $leaveType->id,
-            'start_date' => '2027-12-25',
+            'start_date' => '2027-12-24', // Friday
             'end_date' => '2028-01-05',
             'reason' => 'Cross year vacation failed',
         ]);
 
         $response->assertSessionHasErrors(['end_date']);
         $errors = session('errors')->get('end_date');
-        $this->assertStringContainsString('Insufficient balance: You only have 5 days left for the year 2027, but you requested 7 days.', $errors[0]);
+        $this->assertStringContainsString('Insufficient balance: You only have 5 days left for the year 2027, but you requested 6 days.', $errors[0]);
 
         $this->assertDatabaseMissing('leave_requests', [
             'user_id' => $user->id,
-            'days_requested' => 12,
+            'days_requested' => 9,
         ]);
     }
 

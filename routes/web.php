@@ -67,6 +67,12 @@ Route::middleware('auth')->group(function () {
         Route::resource('leave-types', LeaveTypeController::class);
         Route::resource('departments', DepartmentController::class);
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
+        // Holiday & Weekend Settings
+        Route::get('/settings/holidays', [\App\Http\Controllers\HolidaySettingController::class, 'index'])->name('settings.holidays');
+        Route::post('/settings/holidays', [\App\Http\Controllers\HolidaySettingController::class, 'store'])->name('settings.holidays.store');
+        Route::post('/settings/week-holidays', [\App\Http\Controllers\HolidaySettingController::class, 'updateWeekHolidays'])->name('settings.week_holidays.update');
+        Route::delete('/settings/holidays/{publicHoliday}', [\App\Http\Controllers\HolidaySettingController::class, 'destroy'])->name('settings.holidays.destroy');
     });
 });
 

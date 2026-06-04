@@ -55,7 +55,14 @@ class LeaveController extends Controller
 
         $start = Carbon::parse($request->start_date)->startOfDay();
         $end = Carbon::parse($request->end_date)->startOfDay();
-        $daysRequested = $start->diffInDays($end) + 1;
+        $daysPerYear = $this->calculationService->calculateDaysPerYear($start, $end);
+        $daysRequested = array_sum($daysPerYear);
+
+        if ($daysRequested === 0) {
+            return back()->withErrors([
+                'end_date' => 'The requested leave period does not contain any working days.'
+            ])->withInput();
+        }
 
         $overlapExists = LeaveRequest::where('user_id', Auth::id())
             ->whereIn('status', ['Pending', 'Approved'])
@@ -69,8 +76,6 @@ class LeaveController extends Controller
                     'overlapping with these dates.'
             ])->withInput();
         }
-
-        $daysPerYear = $this->calculationService->calculateDaysPerYear($start, $end);
 
         foreach ($daysPerYear as $year => $days) {
             $balance = $this->calculationService->getOrCreateBalance(
