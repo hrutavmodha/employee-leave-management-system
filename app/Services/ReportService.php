@@ -58,7 +58,7 @@ class ReportService
                 }
             ])->get();
 
-            return $departments->map(function ($dept) use ($currentYear) {
+            $report = $departments->map(function ($dept) use ($currentYear) {
                 $totalEmployees = $dept->users->count();
                 $approvedLeaves = 0;
                 $rejectedLeaves = 0;
@@ -85,6 +85,45 @@ class ReportService
 
                 return $obj;
             });
+
+            // Aggregate employees without a department (department_id = null)
+            $unassignedUsers = User::whereNull('department_id')
+                ->with(['leaveRequests' => function ($query) use ($yearStart, $yearEnd) {
+                    $query->whereIn('status', ['Approved', 'Rejected'])
+                          ->where('start_date', '<=', $yearEnd)
+                          ->where('end_date', '>=', $yearStart);
+                }])
+                ->get();
+
+            if ($unassignedUsers->isNotEmpty()) {
+                $totalEmployees = $unassignedUsers->count();
+                $approvedLeaves = 0;
+                $rejectedLeaves = 0;
+
+                foreach ($unassignedUsers as $user) {
+                    foreach ($user->leaveRequests as $req) {
+                        $dist = $this->getWorkingDaysDistribution($req);
+                        $daysInYear = $dist['years'][$currentYear] ?? 0;
+                        if ($req->status === 'Approved') {
+                            $approvedLeaves += $daysInYear;
+                        } elseif ($req->status === 'Rejected') {
+                            $rejectedLeaves += $daysInYear;
+                        }
+                    }
+                }
+
+                $obj = new \stdClass();
+                $obj->id = null;
+                $obj->name = 'Unassigned';
+                $obj->total_employees = $totalEmployees;
+                $obj->total_leaves = $approvedLeaves;
+                $obj->approved_leaves = $approvedLeaves;
+                $obj->rejected_leaves = $rejectedLeaves;
+
+                $report->push($obj);
+            }
+
+            return $report;
         });
     }
 

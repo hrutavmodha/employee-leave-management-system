@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\LeaveBalance;
 use App\Services\LeaveCalculationService;
+use App\Notifications\LeaveRequestSubmitted;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -21,10 +22,10 @@ class LeaveController extends Controller
 
     public function index()
     {
-        $userId = Auth::id();
-        $requests = \Illuminate\Support\Facades\Cache::remember('user.leaves.' . $userId, 3600, function () {
-            return Auth::user()->leaveRequests()->with('leaveType')->latest()->get();
-        });
+        $requests = Auth::user()->leaveRequests()
+            ->with(['leaveType', 'attachments'])
+            ->latest()
+            ->paginate(15);
         return view('leaves.index', compact('requests'));
     }
 
@@ -107,6 +108,12 @@ class LeaveController extends Controller
                 'file_name' => $request->file('attachment')->getClientOriginalName(),
                 'file_path' => $path,
             ]);
+        }
+
+        // Notify direct manager if assigned
+        $user = Auth::user();
+        if ($user->manager) {
+            $user->manager->notify(new LeaveRequestSubmitted($leaveRequest));
         }
 
         return redirect()->route('leaves.index')->with('success', "Leave application submitted! Duration: {$daysRequested} days.");

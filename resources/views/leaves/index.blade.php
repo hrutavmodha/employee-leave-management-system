@@ -102,6 +102,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($requests->hasPages())
+                        <div class="mt-6 dark:text-gray-300">
+                            {{ $requests->links() }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

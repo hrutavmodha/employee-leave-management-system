@@ -9,14 +9,20 @@ class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered(): void
+    /**
+     * Verify that the registration screen is disabled and returns 404.
+     */
+    public function test_registration_screen_is_disabled(): void
     {
         $response = $this->get('/register');
 
-        $response->assertStatus(200);
+        $response->assertStatus(404);
     }
 
-    public function test_new_users_can_register(): void
+    /**
+     * Verify that post requests to register are disabled and return 404.
+     */
+    public function test_registration_post_is_disabled(): void
     {
         $response = $this->post('/register', [
             'first_name' => 'Test',
@@ -27,7 +33,7 @@ class RegistrationTest extends TestCase
             'role' => 'Employee',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertStatus(404);
+        $this->assertGuest();
     }
 }

@@ -93,6 +93,50 @@ class ReportPerformanceTest extends TestCase
         $this->assertEquals(0, $reportB->rejected_leaves);
     }
 
+    public function test_get_department_report_includes_unassigned_employees(): void
+    {
+        // Arrange
+        Cache::forget('reports.departments');
+
+        $deptA = Department::create(['name' => 'Engineering', 'description' => 'Developers']);
+
+        // User with department
+        $user1 = User::factory()->create(['department_id' => $deptA->id]);
+        // User without department
+        $user2 = User::factory()->create(['department_id' => null]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Vacation',
+            'allowed_days' => 15,
+            'carry_forward' => false,
+        ]);
+
+        // 3 days Approved for unassigned user
+        LeaveRequest::create([
+            'user_id' => $user2->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-08', // Monday
+            'end_date' => '2026-06-10', // Wednesday
+            'days_requested' => 3,
+            'status' => 'Approved',
+            'reason' => 'Unassigned user vacation',
+        ]);
+
+        // Act
+        $report = $this->service->getDepartmentReport();
+
+        // Assert
+        // We should have 2 reports: Engineering and Unassigned
+        $this->assertCount(2, $report);
+
+        $reportUnassigned = $report->firstWhere('name', 'Unassigned');
+        $this->assertNotNull($reportUnassigned);
+        $this->assertEquals(1, $reportUnassigned->total_employees);
+        $this->assertEquals(3, $reportUnassigned->total_leaves);
+        $this->assertEquals(3, $reportUnassigned->approved_leaves);
+        $this->assertEquals(0, $reportUnassigned->rejected_leaves);
+    }
+
     public function test_reports_page_displays_department_stats_correctly_excluding_rejected_leaves(): void
     {
         Cache::forget('reports.departments');

@@ -18,7 +18,10 @@ Route::get('/dashboard', function () {
     
     $stats = [
         'pending' => $user->leaveRequests()->where('status', 'Pending')->count(),
-        'approved' => $user->leaveRequests()->where('status', 'Approved')->whereYear('start_date', $currentYear)->sum('days_requested'),
+        'approved' => $user->leaveRequests()
+            ->where('status', 'Approved')
+            ->whereBetween('start_date', ["{$currentYear}-01-01", "{$currentYear}-12-31"])
+            ->sum('days_requested'),
     ];
 
     $pendingApprovals = 0;

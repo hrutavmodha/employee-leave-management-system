@@ -38,7 +38,7 @@ echo "Press Ctrl+C to stop both servers."
 echo "------------------------------------------------"
 
 # Open browser (Linux command)
-xdg-open $URL 2>/dev/null || echo "Please open $URL in your browser manually."
+xdg-open $URL || echo "Please open $URL in your browser manually."
 
 # Wait for background processes
 wait

@@ -19,30 +19,37 @@ class LeaveCalculationService
         $leaveTypes = LeaveType::all();
         $year = $year ?: date('Y');
 
+        $previousBalances = LeaveBalance::where('user_id', $user->id)
+            ->where('year', $year - 1)
+            ->get()
+            ->keyBy('leave_type_id');
+
+        $currentBalances = LeaveBalance::where('user_id', $user->id)
+            ->where('year', $year)
+            ->get()
+            ->keyBy('leave_type_id');
+
         foreach ($leaveTypes as $type) {
+            if ($currentBalances->has($type->id)) {
+                continue;
+            }
+
             $carriedOver = 0;
             if ($type->carry_forward) {
-                $previousBalance = LeaveBalance::where('user_id', $user->id)
-                    ->where('leave_type_id', $type->id)
-                    ->where('year', $year - 1)
-                    ->first();
+                $previousBalance = $previousBalances->get($type->id);
                 if ($previousBalance) {
                     $carriedOver = $previousBalance->remaining_days;
                 }
             }
 
-            LeaveBalance::firstOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'leave_type_id' => $type->id,
-                    'year' => $year,
-                ],
-                [
-                    'allocated_days' => $type->allowed_days + $carriedOver,
-                    'used_days' => 0,
-                    'remaining_days' => $type->allowed_days + $carriedOver,
-                ]
-            );
+            LeaveBalance::create([
+                'user_id' => $user->id,
+                'leave_type_id' => $type->id,
+                'year' => $year,
+                'allocated_days' => $type->allowed_days + $carriedOver,
+                'used_days' => 0,
+                'remaining_days' => $type->allowed_days + $carriedOver,
+            ]);
         }
     }
 

@@ -35,6 +35,45 @@ class LeaveModuleTest extends TestCase
         ]);
     }
 
+    public function test_submitting_leave_request_notifies_manager(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $manager = User::factory()->create(['role' => 'Manager']);
+        $employee = User::factory()->create([
+            'role' => 'Employee',
+            'manager_id' => $manager->id,
+        ]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 20,
+            'carry_forward' => true
+        ]);
+
+        $response = $this->actingAs($employee)->post('/leaves', [
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-08', // Monday
+            'end_date' => '2026-06-10', // Wednesday (3 working days)
+            'reason' => 'Testing leave application notification',
+        ]);
+
+        $response->assertRedirect(route('leaves.index'));
+        $this->assertDatabaseHas('leave_requests', [
+            'user_id' => $employee->id,
+            'days_requested' => 3,
+            'status' => 'Pending'
+        ]);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $manager,
+            \App\Notifications\LeaveRequestSubmitted::class,
+            function ($notification) use ($employee) {
+                return $notification->leaveRequest->user_id === $employee->id;
+            }
+        );
+    }
+
     public function test_carry_forward_is_calculated_correctly_on_initialization()
     {
         $user = User::factory()->create();
@@ -266,5 +305,51 @@ class LeaveModuleTest extends TestCase
             'end_date' => '2026-06-18 00:00:00',
             'status' => 'Pending',
         ]);
+    }
+
+    public function test_initialize_balances_is_efficient(): void
+    {
+        $user = User::factory()->create();
+
+        // Ensure there are multiple leave types
+        LeaveType::create(['name' => 'Type A', 'allowed_days' => 10, 'carry_forward' => true]);
+        LeaveType::create(['name' => 'Type B', 'allowed_days' => 12, 'carry_forward' => true]);
+        LeaveType::create(['name' => 'Type C', 'allowed_days' => 15, 'carry_forward' => false]);
+
+        // Enable query log
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        // Act: Initialize balances
+        $service = app(\App\Services\LeaveCalculationService::class);
+        $service->initializeBalances($user, 2026);
+
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        // Filter for SELECT queries
+        $selectQueries = array_filter($queries, function ($query) {
+            return str_starts_with(strtolower($query['query']), 'select');
+        });
+
+        // The count of SELECT queries should be exactly 3:
+        // 1. SELECT * FROM leave_types
+        // 2. SELECT * FROM leave_balances WHERE user_id = ? AND year = 2025
+        // 3. SELECT * FROM leave_balances WHERE user_id = ? AND year = 2026
+        $this->assertLessThanOrEqual(3, count($selectQueries));
+    }
+
+    public function test_leave_requests_table_has_status_index(): void
+    {
+        $indexes = \Illuminate\Support\Facades\Schema::getIndexes('leave_requests');
+        $hasStatusIndex = false;
+
+        foreach ($indexes as $index) {
+            if (in_array('status', $index['columns'], true)) {
+                $hasStatusIndex = true;
+                break;
+            }
+        }
+
+        $this->assertTrue($hasStatusIndex, 'The status column on the leave_requests table is not indexed.');
     }
 }

@@ -27,22 +27,18 @@ class ApprovalController extends Controller
         $user = Auth::user();
         
         if ($user->isAdmin()) {
-            $pendingRequests = \Illuminate\Support\Facades\Cache::remember('approvals.pending.admin', 3600, function () {
-                return LeaveRequest::with(['user', 'leaveType'])
-                    ->where('status', 'Pending')
-                    ->latest()
-                    ->get();
-            });
+            $pendingRequests = LeaveRequest::with(['user', 'leaveType', 'attachments'])
+                ->where('status', 'Pending')
+                ->latest()
+                ->paginate(15);
         } else {
-            $pendingRequests = \Illuminate\Support\Facades\Cache::remember("approvals.pending.{$user->id}", 3600, function () use ($user) {
-                return LeaveRequest::with(['user', 'leaveType'])
-                    ->whereHas('user', function ($query) use ($user) {
-                        $query->where('manager_id', $user->id);
-                    })
-                    ->where('status', 'Pending')
-                    ->latest()
-                    ->get();
-            });
+            $pendingRequests = LeaveRequest::with(['user', 'leaveType', 'attachments'])
+                ->whereHas('user', function ($query) use ($user) {
+                    $query->where('manager_id', $user->id);
+                })
+                ->where('status', 'Pending')
+                ->latest()
+                ->paginate(15);
         }
 
         return view('approvals.index', compact('pendingRequests'));

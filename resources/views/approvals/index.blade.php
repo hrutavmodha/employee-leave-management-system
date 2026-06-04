@@ -80,6 +80,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($pendingRequests->hasPages())
+                        <div class="mt-6 dark:text-gray-300">
+                            {{ $pendingRequests->links() }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
