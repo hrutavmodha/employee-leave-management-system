@@ -263,47 +263,47 @@ class HolidaySettingController extends Controller
 
             $country = $request->country;
             $year = $request->year;
+            $holidays = [];
 
             try {
-                $response = \Illuminate\Support\Facades\Http::timeout(10)->get(
+                $response = \Illuminate\Support\Facades\Http::timeout(5)->get(
                     "https://date.nager.at/api/v3/PublicHolidays/{$year}/{$country}"
                 );
 
                 if ($response->successful()) {
-                    $holidays = $response->json();
-                    $importedCount = 0;
-
-                    foreach ($holidays as $item) {
-                        $date = $item['date'] ?? null;
-                        $name = $item['name'] ?? null;
-
-                        if ($date && $name) {
-                            // Check if holiday already exists for this date
-                            $exists = PublicHoliday::where('date', $date)->exists();
-                            if (!$exists) {
-                                PublicHoliday::create([
-                                    'name' => $name,
-                                    'date' => $date,
-                                ]);
-                                $importedCount++;
-                            }
-                        }
-                    }
-
-                    $msg = "Successfully imported {$importedCount} new holidays for {$country} ({$year})!";
-                    return redirect()
-                        ->route('settings.holidays')
-                        ->with('success', $msg);
+                    $holidays = $response->json() ?? [];
                 }
-
-                return redirect()
-                    ->route('settings.holidays')
-                    ->with('error', 'Failed to fetch holidays from the API. Please try again.');
             } catch (\Exception $e) {
-                return redirect()
-                    ->route('settings.holidays')
-                    ->with('error', 'Connection to API failed: ' . $e->getMessage());
+                // Connection or API failed, we will fall back to local rule-based generation
             }
+
+            // Fallback: If API returned empty array (204) or failed, generate holidays locally
+            if (empty($holidays)) {
+                $holidays = $this->generateLocalHolidays($country, $year);
+            }
+
+            $importedCount = 0;
+            foreach ($holidays as $item) {
+                $date = $item['date'] ?? null;
+                $name = $item['name'] ?? null;
+
+                if ($date && $name) {
+                    // Check if holiday already exists for this date
+                    $exists = PublicHoliday::where('date', $date)->exists();
+                    if (!$exists) {
+                        PublicHoliday::create([
+                            'name' => $name,
+                            'date' => $date,
+                        ]);
+                        $importedCount++;
+                    }
+                }
+            }
+
+            $msg = "Successfully imported {$importedCount} new holidays for {$country} ({$year})!";
+            return redirect()
+                ->route('settings.holidays')
+                ->with('success', $msg);
         }
 
         $request->validate([
@@ -319,6 +319,99 @@ class HolidaySettingController extends Controller
         return redirect()
             ->route('settings.holidays')
             ->with('success', 'Company holiday added successfully.');
+    }
+
+    /**
+     * Generate standard holidays locally based on country code and year.
+     */
+    private function generateLocalHolidays(string $countryCode, int $year): array
+    {
+        $countryCode = strtoupper($countryCode);
+        $holidays = [];
+
+        // 1. Universal / Common Holidays
+        $holidays[] = ['date' => "{$year}-01-01", 'name' => "New Year's Day"];
+        $holidays[] = ['date' => "{$year}-05-01", 'name' => 'International Workers\' Day'];
+        $holidays[] = ['date' => "{$year}-12-25", 'name' => 'Christmas Day'];
+
+        // 2. Country-specific rules
+        switch ($countryCode) {
+            case 'IN': // India
+                $holidays[] = ['date' => "{$year}-01-26", 'name' => 'Republic Day'];
+                $holidays[] = ['date' => "{$year}-08-15", 'name' => 'Independence Day'];
+                $holidays[] = ['date' => "{$year}-10-02", 'name' => 'Mahatma Gandhi Jayanti'];
+                break;
+
+            case 'US': // United States
+                $holidays[] = ['date' => "{$year}-07-04", 'name' => 'Independence Day'];
+                $holidays[] = ['date' => "{$year}-11-11", 'name' => 'Veterans Day'];
+                
+                // Memorial Day: Last Monday of May
+                $memorialDay = new \DateTime("last Monday of May {$year}");
+                $holidays[] = ['date' => $memorialDay->format('Y-m-d'), 'name' => 'Memorial Day'];
+
+                // Labor Day: First Monday of September
+                $laborDay = new \DateTime("first Monday of September {$year}");
+                $holidays[] = ['date' => $laborDay->format('Y-m-d'), 'name' => 'Labor Day'];
+
+                // Thanksgiving: Fourth Thursday of November
+                $thanksgiving = new \DateTime("fourth Thursday of November {$year}");
+                $holidays[] = ['date' => $thanksgiving->format('Y-m-d'), 'name' => 'Thanksgiving Day'];
+                break;
+
+            case 'GB': // United Kingdom
+                $holidays[] = ['date' => "{$year}-12-26", 'name' => 'Boxing Day'];
+                
+                // Early May Bank Holiday: First Monday of May
+                $earlyMay = new \DateTime("first Monday of May {$year}");
+                $holidays[] = ['date' => $earlyMay->format('Y-m-d'), 'name' => 'Early May Bank Holiday'];
+
+                // Spring Bank Holiday: Last Monday of May
+                $springBank = new \DateTime("last Monday of May {$year}");
+                $holidays[] = ['date' => $springBank->format('Y-m-d'), 'name' => 'Spring Bank Holiday'];
+
+                // Summer Bank Holiday: Last Monday of August
+                $summerBank = new \DateTime("last Monday of August {$year}");
+                $holidays[] = ['date' => $summerBank->format('Y-m-d'), 'name' => 'Summer Bank Holiday'];
+                break;
+
+            case 'CA': // Canada
+                $holidays[] = ['date' => "{$year}-07-01", 'name' => 'Canada Day'];
+                $holidays[] = ['date' => "{$year}-11-11", 'name' => 'Remembrance Day'];
+                
+                // Victoria Day: Monday preceding May 25
+                $victoria = new \DateTime("Monday before 25 May {$year}");
+                $holidays[] = ['date' => $victoria->format('Y-m-d'), 'name' => 'Victoria Day'];
+
+                // Thanksgiving: Second Monday of October
+                $thanksgiving = new \DateTime("second Monday of October {$year}");
+                $holidays[] = ['date' => $thanksgiving->format('Y-m-d'), 'name' => 'Thanksgiving Day'];
+                break;
+
+            case 'AU': // Australia
+                $holidays[] = ['date' => "{$year}-01-26", 'name' => 'Australia Day'];
+                $holidays[] = ['date' => "{$year}-04-25", 'name' => 'Anzac Day'];
+                $holidays[] = ['date' => "{$year}-12-26", 'name' => 'Boxing Day'];
+                break;
+
+            case 'DE': // Germany
+                $holidays[] = ['date' => "{$year}-10-03", 'name' => 'Day of German Unity'];
+                $holidays[] = ['date' => "{$year}-12-26", 'name' => 'Second Day of Christmas'];
+                break;
+
+            case 'FR': // France
+                $holidays[] = ['date' => "{$year}-05-08", 'name' => 'Victory in Europe Day'];
+                $holidays[] = ['date' => "{$year}-07-14", 'name' => 'Bastille Day'];
+                $holidays[] = ['date' => "{$year}-11-11", 'name' => 'Armistice Day'];
+                break;
+
+            case 'AF': // Afghanistan
+                $holidays[] = ['date' => "{$year}-08-19", 'name' => 'Afghan Independence Day'];
+                $holidays[] = ['date' => "{$year}-03-21", 'name' => 'Nowruz (New Year)'];
+                break;
+        }
+
+        return $holidays;
     }
 
     /**
