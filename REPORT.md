@@ -1,102 +1,151 @@
-# Project Evaluation: Employee Leave Management System (ELMS)
+# Employee Leave Management System (ELMS) - Audit Report
 
-This document provides a comprehensive evaluation of the project's **Correctness**, **Efficiency**, and **Security** to determine whether the application is production-grade. 
-
----
-
-## 📊 Summary of Production-Grade Status
-
-| Evaluation Dimension | Production-Grade Verdict | Key Missing Capabilities |
-| :--- | :--- | :--- |
-| **[Correctness](#1-correctness)** | 🟡 **Partial** | Cross-year request split, overlap validation, weekend/holiday exclusion, manager notifications. |
-| **[Efficiency](#2-efficiency)** | 🟡 **Partial** | N+1 queries in balance initialization, index suppression in queries, missing index on `status`, lack of pagination on leaves and approvals. |
-| **[Security](#3-security)** | 🟡 **Partial** | Public self-registration allowed, lack of audit trails/logging. |
+This report outlines the correctness, efficiency, and security gaps identified during the code audit of the ELMS application. Each issue is detailed with its corresponding file locations, impact analysis, and actionable remediation steps.
 
 ---
 
-## 1. Correctness
+## 1. Correctness Gaps
 
-### Strengths
-* **State Transition Guardrails:** In [ApprovalController.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/ApprovalController.php#L58-L60), only pending leave requests can be approved or rejected. Attempting to re-approve an approved request, reject an approved request, or approve a cancelled request is blocked with session error messages.
-* **Resilient Balance Auto-Initialization:** If a new `LeaveType` is created, [LeaveCalculationService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/LeaveCalculationService.php#L51-L69) dynamically initializes the balance record for the user on-demand when they apply. This prevents crashes due to schema modifications.
-* **Robust File Cleanups:** The [User](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Models/User.php#L163-L171) and [LeaveRequest](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Models/LeaveRequest.php#L73-L77) models hook into Eloquent deleting events to prune profile pictures and attachments from disk before cascade-deleting database records.
+### 1.1 Inconsistent Leave Counts due to Dynamic Weekend/Holiday Changes
+* **Location:** 
+  * [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L31-L39) (in `getEmployeeReport` and `getDepartmentReport`)
+  * [LeaveController.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php#L122-L134) (in `cancel`)
+  * [web.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/routes/web.php#L15-L39) (in `/dashboard` statistics)
+* **Problem:** 
+  * When an employee submits a leave request, the working days requested are calculated via `calculateDaysPerYear` and stored statically in the `days_requested` field in [LeaveRequest.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Models/LeaveRequest.php).
+  * The dashboard calculates total approved leaves by summing the static `days_requested` field.
+  * In contrast, the reporting service ([ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php)) calculates leaves on the fly by calling `getWorkingDaysDistribution()`, which reads the current `week_holidays` setting dynamically.
+  * Furthermore, when cancelling an approved leave, [LeaveController.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php) recalculates the refund duration dynamically via `refundBalance()`.
+* **Impact:** 
+  * If weekend or public holidays are updated by an admin, reports and dashboard statistics will show different and conflicting leave durations for the same historical leave requests.
+  * More critically, cancelling a previously approved leave request will recalculate the refund using the *new* weekend settings. If settings changed since approval, the refunded balance will mismatch the deducted balance, corrupting user leave balances.
+* **Remediation:** 
+  * Store the exact day breakdown per year/month statically in a pivot or child table (e.g., `leave_request_dates`) at submission time.
+  * Use these persisted dates for approvals, refunds, and reports rather than recalculating dates dynamically on the fly.
 
-### Critical Gaps (Non-Production Grade)
-1. **Cross-Year Leave Request Handling:**
-   * **Issue:** In [LeaveController.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php#L56-L65), the requested days are calculated as a single block and deducted from the year of the `start_date`.
-   * **Impact:** A leave request from Dec 25, 2026, to Jan 5, 2027 (12 days total) will deduct all 12 days from the 2026 balance. This leads to incorrect deductions, balance exhaustion for the starting year, and bypasses the current year's limit.
-2. **Missing Overlap Validation:**
-   * **Issue:** There is no logic validating if a user has already applied for leaves on overlapping dates.
-   * **Impact:** An employee can submit (and a manager can approve) multiple leave requests for the same date range, leading to double-deductions of their leave balances and corrupted scheduling data.
-3. **No Weekend or Public Holiday Exclusions:**
-   * **Issue:** The leave duration is calculated using calendar days: `$start->diffInDays($end) + 1`.
-   * **Impact:** Weekend days (Saturdays/Sundays) and official company holidays are counted as leave days, incorrectly depleting employee leave balances. Production-grade systems must filter out non-working days.
-4. **Missing Manager Request Notifications:**
-   * **Issue:** When an employee submits a leave request, no email or system notification is sent to their manager.
-   * **Impact:** Managers have no visibility of pending requests unless they proactively log in and monitor the dashboard, causing delays in approvals.
-5. **Incomplete Department Reports:**
-   * **Issue:** In [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L38-L42), the department stats join uses `Department::leftJoin('users')`.
-   * **Impact:** Employees without a designated department (`department_id` is null) are entirely excluded from department statistics and aggregate employee counts, skewing financial and operational audits.
+### 1.2 Stale Carry-Forward Balances at Year-End
+* **Location:** 
+  * [LeaveCalculationService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/LeaveCalculationService.php#L17-L54) (in `initializeBalances`)
+* **Problem:** 
+  * Year-end rollover calculates carry-forward days using the previous year's remaining balance at the moment of initialization:
+    `$carriedOver = $previousBalance->remaining_days;`
+  * If a user's previous year's balance changes *after* the new year's balance has already been initialized (e.g., due to a retrospective leave cancellation or approval), the next year's carry-forward balance is never recalculated or updated.
+* **Impact:** 
+  * Employees will have incorrect leave allocations for the current year if their prior year's leave was adjusted after January 1st initialization.
+* **Remediation:** 
+  * Implement an event listener or observer on [LeaveBalance.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Models/LeaveBalance.php) that detects updates to `remaining_days` and automatically adjusts the next year's balance if `carry_forward` is enabled.
 
----
+### 1.3 Config Caching Failures (`env()` Anti-pattern)
+* **Location:** 
+  * [LeaveRequestSubmitted.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Notifications/LeaveRequestSubmitted.php#L41-L43) (in `toMail`)
+  * [LeaveStatusUpdated.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Notifications/LeaveStatusUpdated.php#L44-L46) (in `toMail`)
+  * [AppServiceProvider.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Providers/AppServiceProvider.php#L27) (in `boot`)
+* **Problem:** 
+  * The application calls the `env()` helper directly outside configuration files (e.g., `env('APP_PROTOCOL')`, `env('APP_DOMAIN')`, `env('QUEUE_FLUSH_THRESHOLD')`).
+* **Impact:** 
+  * If configuration caching is enabled in production (`php artisan config:cache`), Laravel ignores `.env` files entirely and all `env()` calls outside config files return `null`. This breaks notification URLs (e.g., producing `:// /leaves` links) and disables queue flushing.
+* **Remediation:** 
+  * Move all environmental parameters into existing files under the `config/` directory (e.g., `config/app.php` and `config/queue.php`) and access them using the `config()` helper (e.g., `config('app.protocol')`).
 
-## 2. Efficiency
-
-### Strengths
-* **Relationship Eager Loading:** The [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L15-L20) eager-loads `department` and nested `leaveBalances.leaveType` relations, preventing N+1 queries on reporting runs.
-* **Notification Queueing:** The [LeaveStatusUpdated.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Notifications/LeaveStatusUpdated.php#L11) notification implements `ShouldQueue`, ensuring slow mail delivery operations are delegated to background workers and do not block HTTP request cycles.
-* **Proactive Cache Invalidation:** Caches are dynamically invalidated via booted Eloquent observers on saving or deleting models ([LeaveRequest.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Models/LeaveRequest.php#L51-L67), [User.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Models/User.php#L140-L153), etc.), preventing stale views without relying on aggressive TTL polling.
-
-### Critical Gaps (Non-Production Grade)
-1. **N+1 Query During Balance Initialization:**
-   * **Issue:** In [LeaveCalculationService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/LeaveCalculationService.php#L21-L31), carry-forward checks trigger a separate database query for each individual `LeaveType` inside a loop.
-   * **Impact:** If initializing balances for 500 employees with 10 leave types, the application fires 5,000 separate SELECT queries. This can be optimized to 1 batched query fetching all previous year balances for the user.
-2. **Index Suppression via Functional SQL Queries:**
-   * **Issue:** Reporting queries inside [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L22) filter dates using `whereYear('start_date', date('Y'))`.
-   * **Impact:** Wrapping a indexed date column in `whereYear()` prevents the database engine from executing B-Tree index lookups on `start_date`, reverting to slow full-table scans.
-3. **Missing Database Indexes:**
-   * **Issue:** The `status` column in the `leave_requests` table has no index.
-   * **Impact:** Queries selecting pending approvals or filtering by status will slow down drastically as the database grows.
-4. **Lack of Pagination on Leaves and Approvals:**
-   * **Issue:** [LeaveController.php@index](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php#L22-L29) and [ApprovalController.php@index](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/ApprovalController.php#L25-L49) load all matching records into memory in a single call.
-   * **Impact:** For historical accounts or larger organizations, this will trigger high memory usage and eventual Out-Of-Memory (OOM) fatal crashes.
-
----
-
-## 3. Security
-
-### Strengths
-* **Granular Role Routing:** The application uses a custom [CheckRole.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Middleware/CheckRole.php) middleware registered in [bootstrap/app.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/bootstrap/app.php#L14-L16) to cleanly gate administrative and managerial operations.
-* **Insecure Direct Object Reference (IDOR) Mitigation:** Attachment downloads in [LeaveController.php@viewAttachment](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php#L106-L134) enforce multi-tier authorization checks. An attachment cannot be accessed unless the authenticated user is the owner, their direct manager, or an administrator.
-* **Private Storage of Uploads:** Files are stored in the private `local` storage disk instead of the web public root. Direct execution of arbitrary scripts (e.g., uploading and executing a malicious `.php` script) is completely prevented.
-
-### Critical Gaps (Non-Production Grade)
-1. **Public Self-Registration Enabled:**
-   * **Issue:** The registration routes are exposed publicly via [auth.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/routes/auth.php#L15-L18). Anyone can visit `/register` and create an active employee account.
-   * **Impact:** Public users can access the system dashboard and register themselves without HR validation. In a production enterprise system, accounts should only be provisioned by administrators or linked to company SSO/LDAP.
-2. **Absence of Audit Trail/Logging:**
-   * **Issue:** There is no logging implemented in the codebase for critical modifications (e.g., when a leave is approved/rejected, when an employee is deleted, or when policies are modified).
-   * **Impact:** In the event of malicious activity or administrative disputes (e.g., unauthorized leave approvals), there is no audit log to establish accountability or trace the timeline of events.
-3. **Database Concurrency Risks (SQLite Limitations):**
-   * **Issue:** The default database configuration uses SQLite with `DEFERRED` transactions.
-   * **Impact:** Under high concurrent access (e.g., multiple managers approving leaves simultaneously), SQLite is prone to write lock contention (`database is locked` errors), which can interrupt operations. Pessimistic locking (`lockForUpdate`) is also a no-op in SQLite.
+### 1.4 Dead Code and Reflection Unit Tests
+* **Location:** 
+  * [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L239-L252) (method `monthExtractionSql`)
+  * [MonthlyStatsPortabilityTest.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/tests/Unit/MonthlyStatsPortabilityTest.php#L28-L90)
+* **Problem:** 
+  * `monthExtractionSql()` is a private method meant for generating database-portable month extractions. However, it is never called anywhere in the application logic. 
+  * The unit test suite contains extensive reflection tests to verify its behavior for different drivers despite the method being dead code.
+* **Impact:** 
+  * Maintenance overhead and technical debt.
+* **Remediation:** 
+  * Remove the dead method and its corresponding unit tests, or utilize the method to optimize [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L136-L174) database operations.
 
 ---
 
-## 🛠️ Recommended Action Items to Achieve Production-Grade
+## 2. Efficiency Gaps
 
-To bring this codebase to a production-grade standard, the following modifications should be implemented:
+### 2.1 N+1 Query Database Performance Bottleneck in Reports
+* **Location:** 
+  * [ReportService.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Services/ReportService.php#L182-L226) (in `getWorkingDaysDistribution`)
+* **Problem:** 
+  * For every single leave request processed in `getEmployeeReport()` and `getDepartmentReport()`, `getWorkingDaysDistribution()` executes a database query to retrieve public holidays:
+    ```php
+    $publicHolidays = \App\Models\PublicHoliday::whereBetween('date', [
+        $start->toDateString(),
+        $end->toDateString()
+    ])->pluck('date')->toArray();
+    ```
+* **Impact:** 
+  * If an organization has 100 employees, each submitting 5 leave requests, loading the report page executes **500 additional database queries**. This causes severe database latency, high CPU usage, and slow page loads.
+* **Remediation:** 
+  * Fetch all public holidays for the current year/range in a single query at the start of the report generation, and pass that collection as a parameter to `getWorkingDaysDistribution()`.
 
-1. **Enhance Leave Logic (Correctness):**
-   * Exclude weekends and public holidays by calculating working days instead of calendar days.
-   * Add a validation rule checking for overlapping dates: `where('start_date', '<=', $end_date)->where('end_date', '>=', $start_date)`.
-   * For leaves spanning multiple years, split the deduction block and debit the respective portion from each year's balance.
-2. **Optimize Query Infrastructure (Efficiency):**
-   * Replace N+1 queries in `initializeBalances` by batch-fetching previous year balances with `whereIn()`.
-   * Convert functional queries from `whereYear('start_date', ...)` to range queries: `whereBetween('start_date', ["{$year}-01-01", "{$year}-12-31"])`.
-   * Add a migration to index the `status` column on the `leave_requests` table.
-   * Add pagination (`->paginate(15)`) to the leaves history and approvals index lists.
-3. **Strengthen System Gaps (Security & Infrastructure):**
-   * Disable the `/register` routes in production and transition account provisioning exclusively to administrators or SSO.
-   * Integrate Laravel's `Log::info()` or `Log::warning()` to record audit events for user deletions, leave approvals/rejections, and cancellations.
-   * Migrate the production database driver to MySQL, PostgreSQL, or MariaDB to support proper pessimistic locking (`lockForUpdate()`) and concurrent write safety.
+### 2.2 CPU/Process Overhead via Dynamic Queue Worker Spawning
+* **Location:** 
+  * [AppServiceProvider.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Providers/AppServiceProvider.php#L26-L36)
+* **Problem:** 
+  * In the `JobQueued` event listener, the service provider executes a background shell command via PHP's `exec()` to start a queue worker:
+    ```php
+    $command = 'php ' . base_path('artisan') . ' queue:work --stop-when-empty > /dev/null 2>&1 &';
+    exec($command);
+    ```
+* **Impact:** 
+  * Running a shell command dynamically to spawn a PHP CLI runtime process for every queued job creates high CPU and RAM overhead. Under high concurrency, this will exhaust server resources, trigger process limits, or cause a denial of service (DoS).
+* **Remediation:** 
+  * Remove process execution from the application layer. Standard production practice is to run a persistent process manager like **Supervisor** or a system daemon to run queue workers continuously.
+
+### 2.3 Local Development Redis Infrastructure Overhead
+* **Location:** 
+  * [.env](file:///home/hrutav-modha/Documents/sem5/sbtp/project/.env#L30-L49)
+  * [run.sh](file:///home/hrutav-modha/Documents/sem5/sbtp/project/run.sh#L19-L21)
+* **Problem:** 
+  * The application defaults to using Redis for sessions, queue, and caching locally, forcing development scripts to build and spin up a local Redis server instance.
+* **Impact:** 
+  * If the local Redis instance crashes or is not started, the application fails to function.
+* **Remediation:** 
+  * For local development, change the default drivers in [.env.example](file:///home/hrutav-modha/Documents/sem5/sbtp/project/.env.example) to `database` or `file` so developers can run the system without a hard dependency on Redis.
+
+---
+
+## 3. Security Gaps
+
+### 3.1 Unchecked Historical Leave Cancellation (Refund Exploit)
+* **Location:** 
+  * [LeaveController.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php#L122-L134) (in `cancel`)
+* **Problem:** 
+  * The `cancel` method allows an employee to cancel *any* leave request they own without checking the leave's date:
+    ```php
+    if ($leaveRequest->status === 'Approved') {
+        $this->calculationService->refundBalance($leaveRequest);
+    }
+    ```
+* **Impact:** 
+  * Employees can cancel leave requests that took place in the past (e.g., weeks or months ago) and get their leave balance refunded dynamically. This allows users to exploit the system to gain infinite paid leave days.
+* **Remediation:** 
+  * Enforce that leave requests cannot be unilaterally cancelled by the employee once the start date has passed (`start_date <= today`). Past leaves should either be unmodifiable or require explicit manager/HR intervention.
+
+### 3.2 Shell Command Injection Risks
+* **Location:** 
+  * [AppServiceProvider.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Providers/AppServiceProvider.php#L34)
+* **Problem:** 
+  * The app uses `exec()` to run shell commands within the web request context.
+* **Impact:** 
+  * Many security-hardened production environments disable shell execution functions via `disable_functions` in `php.ini`. More importantly, if `base_path()` or any other parameters could be influenced by external input, it would introduce a Remote Code Execution (RCE) vulnerability.
+* **Remediation:** 
+  * Eliminate the use of shell execution commands within application code. Rely on persistent background daemons for queue processing.
+
+### 3.3 Lack of Concurrency Locking on Overlapping Leaves
+* **Location:** 
+  * [LeaveController.php](file:///home/hrutav-modha/Documents/sem5/sbtp/project/app/Http/Controllers/LeaveController.php#L68-L72) (in `store`)
+* **Problem:** 
+  * Overlapping requests are checked using a simple database query:
+    ```php
+    $overlapExists = LeaveRequest::where('user_id', Auth::id())
+        ->whereIn('status', ['Pending', 'Approved'])
+        ->where('start_date', '<=', $request->end_date)
+        ->where('end_date', '>=', $request->start_date)
+        ->exists();
+    ```
+* **Impact:** 
+  * There is a race condition. If an employee sends two identical requests simultaneously (e.g., via double-clicking the submit button or automated script), both requests will execute the check before either is written, allowing duplicate overlapping leaves to bypass validation and get saved.
+* **Remediation:** 
+  * Wrap the overlap check and save inside a database transaction and utilize a pessimistic or shared lock to serialize concurrent queries for the same user.

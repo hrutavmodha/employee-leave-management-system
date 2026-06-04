@@ -48,6 +48,11 @@ class LeaveRequest extends Model
         return $this->hasMany(Attachment::class);
     }
 
+    public function dates(): HasMany
+    {
+        return $this->hasMany(LeaveRequestDate::class);
+    }
+
     protected static function booted(): void
     {
         $clearCache = function (LeaveRequest $request) {
@@ -67,6 +72,20 @@ class LeaveRequest extends Model
         static::created(function (LeaveRequest $request) {
             $actor = \Illuminate\Support\Facades\Auth::user() ? \Illuminate\Support\Facades\Auth::user()->email : 'System/CLI';
             \Illuminate\Support\Facades\Log::info("Audit log - Leave request submitted: ID={$request->id}, UserID={$request->user_id}, TypeID={$request->leave_type_id}, Days={$request->days_requested}, Actor={$actor}");
+
+            if ($request->dates()->count() === 0) {
+                $start = \Carbon\Carbon::parse($request->start_date)->startOfDay();
+                $end = \Carbon\Carbon::parse($request->end_date)->startOfDay();
+                $calcService = app(\App\Services\LeaveCalculationService::class);
+                $workingDays = $calcService->getWorkingDays($start, $end);
+                foreach ($workingDays as $date) {
+                    $request->dates()->create([
+                        'date' => $date->toDateString(),
+                        'year' => $date->year,
+                        'month' => $date->format('m'),
+                    ]);
+                }
+            }
         });
 
         static::updated(function (LeaveRequest $request) {

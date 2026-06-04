@@ -35,5 +35,26 @@ class LeaveBalance extends Model
 
         static::saved($clearCache);
         static::deleted($clearCache);
+
+        static::updated(function (LeaveBalance $balance) {
+            if ($balance->isDirty('remaining_days') && $balance->leaveType && $balance->leaveType->carry_forward) {
+                $oldRemaining = $balance->getOriginal('remaining_days');
+                $newRemaining = $balance->remaining_days;
+                $delta = $newRemaining - $oldRemaining;
+
+                if ($delta != 0) {
+                    $nextBalance = LeaveBalance::where('user_id', $balance->user_id)
+                        ->where('leave_type_id', $balance->leave_type_id)
+                        ->where('year', $balance->year + 1)
+                        ->first();
+
+                    if ($nextBalance) {
+                        $nextBalance->allocated_days += $delta;
+                        $nextBalance->remaining_days += $delta;
+                        $nextBalance->save();
+                    }
+                }
+            }
+        });
     }
 }

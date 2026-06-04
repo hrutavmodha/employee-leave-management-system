@@ -18,10 +18,12 @@ Route::get('/dashboard', function () {
     
     $stats = [
         'pending' => $user->leaveRequests()->where('status', 'Pending')->count(),
-        'approved' => $user->leaveRequests()
-            ->where('status', 'Approved')
-            ->whereBetween('start_date', ["{$currentYear}-01-01", "{$currentYear}-12-31"])
-            ->sum('days_requested'),
+        'approved' => \Illuminate\Support\Facades\DB::table('leave_request_dates')
+            ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
+            ->where('leave_requests.user_id', $user->id)
+            ->where('leave_requests.status', 'Approved')
+            ->where('leave_request_dates.year', $currentYear)
+            ->count(),
     ];
 
     $pendingApprovals = 0;

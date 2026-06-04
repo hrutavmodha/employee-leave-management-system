@@ -8,6 +8,7 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use Exception;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class LeaveCalculationService
 {
@@ -77,15 +78,15 @@ class LeaveCalculationService
     }
 
     /**
-     * Calculate the distribution of leave days per year for a given date range.
+     * Get the exact list of working dates (non-weekend, non-public holiday) in a date range.
      *
      * @param \Carbon\Carbon $start
      * @param \Carbon\Carbon $end
-     * @return array<int, int> An array mapping year => days requested in that year
+     * @return array<\Carbon\Carbon>
      */
-    public function calculateDaysPerYear(Carbon $start, Carbon $end): array
+    public function getWorkingDays(Carbon $start, Carbon $end): array
     {
-        $daysPerYear = [];
+        $workingDays = [];
         $current = $start->copy()->startOfDay();
         $endLimit = $end->copy()->startOfDay();
 
@@ -112,14 +113,28 @@ class LeaveCalculationService
                 continue;
             }
 
-            $year = $current->year;
-            if (!isset($daysPerYear[$year])) {
-                $daysPerYear[$year] = 0;
-            }
-            $daysPerYear[$year]++;
+            $workingDays[] = $current->copy();
             $current->addDay();
         }
 
+        return $workingDays;
+    }
+
+    /**
+     * Calculate the distribution of leave days per year for a given date range.
+     *
+     * @param \Carbon\Carbon $start
+     * @param \Carbon\Carbon $end
+     * @return array<int, int> An array mapping year => days requested in that year
+     */
+    public function calculateDaysPerYear(Carbon $start, Carbon $end): array
+    {
+        $daysPerYear = [];
+        $workingDays = $this->getWorkingDays($start, $end);
+        foreach ($workingDays as $date) {
+            $year = $date->year;
+            $daysPerYear[$year] = ($daysPerYear[$year] ?? 0) + 1;
+        }
         return $daysPerYear;
     }
 
@@ -129,9 +144,23 @@ class LeaveCalculationService
     public function deductBalance(LeaveRequest $request)
     {
         $user = $request->user;
-        $start = Carbon::parse($request->start_date)->startOfDay();
-        $end = Carbon::parse($request->end_date)->startOfDay();
-        $daysPerYear = $this->calculateDaysPerYear($start, $end);
+        
+        $hasStaticDates = $request->id && DB::table('leave_request_dates')
+            ->where('leave_request_id', $request->id)
+            ->exists();
+
+        if ($hasStaticDates) {
+            $daysPerYear = DB::table('leave_request_dates')
+                ->where('leave_request_id', $request->id)
+                ->selectRaw('year, count(*) as count')
+                ->groupBy('year')
+                ->pluck('count', 'year')
+                ->toArray();
+        } else {
+            $start = Carbon::parse($request->start_date)->startOfDay();
+            $end = Carbon::parse($request->end_date)->startOfDay();
+            $daysPerYear = $this->calculateDaysPerYear($start, $end);
+        }
 
         foreach ($daysPerYear as $year => $days) {
             // Ensure the balance record is initialized
@@ -167,9 +196,23 @@ class LeaveCalculationService
     public function refundBalance(LeaveRequest $request)
     {
         $user = $request->user;
-        $start = Carbon::parse($request->start_date)->startOfDay();
-        $end = Carbon::parse($request->end_date)->startOfDay();
-        $daysPerYear = $this->calculateDaysPerYear($start, $end);
+        
+        $hasStaticDates = $request->id && DB::table('leave_request_dates')
+            ->where('leave_request_id', $request->id)
+            ->exists();
+
+        if ($hasStaticDates) {
+            $daysPerYear = DB::table('leave_request_dates')
+                ->where('leave_request_id', $request->id)
+                ->selectRaw('year, count(*) as count')
+                ->groupBy('year')
+                ->pluck('count', 'year')
+                ->toArray();
+        } else {
+            $start = Carbon::parse($request->start_date)->startOfDay();
+            $end = Carbon::parse($request->end_date)->startOfDay();
+            $daysPerYear = $this->calculateDaysPerYear($start, $end);
+        }
 
         foreach ($daysPerYear as $year => $days) {
             // Ensure the balance record is initialized
