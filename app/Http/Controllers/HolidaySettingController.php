@@ -15,7 +15,7 @@ class HolidaySettingController extends Controller
     {
         $weekHolidays = Setting::getVal('week_holidays', [0, 6]);
         $publicHolidays = PublicHoliday::orderBy('date')->get();
-        $years = range(date('Y') - 1, date('Y') + 2);
+        $years = range(date('Y') - 2, date('Y') + 5);
 
         $countries = [
             ['countryCode' => 'AF', 'name' => 'Afghanistan'],
@@ -255,9 +255,10 @@ class HolidaySettingController extends Controller
     public function store(Request $request)
     {
         if ($request->has('country')) {
+            $currentYear = (int) date('Y');
             $request->validate([
                 'country' => 'required|string|size:2',
-                'year' => 'required|integer|between:2020,2035',
+                'year' => 'required|integer|between:' . ($currentYear - 5) . ',' . ($currentYear + 10),
             ]);
 
             $country = $request->country;
