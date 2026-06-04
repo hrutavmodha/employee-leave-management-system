@@ -17,6 +17,12 @@
                 </div>
             @endif
 
+            @if(session('error'))
+                <div class="mb-6 p-4 bg-red-100 dark:bg-red-950/40 border-l-4 border-red-500 dark:border-red-600 text-red-700 dark:text-red-300 rounded shadow-sm">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Left: Week Holidays Configuration -->
                 <div class="bg-white dark:bg-slate-800 overflow-hidden shadow sm:rounded-lg border border-gray-200 dark:border-slate-700 p-6">
@@ -56,6 +62,48 @@
                             {{ __('Save Weekly Settings') }}
                         </button>
                     </form>
+
+                    <div class="mt-8 border-t border-gray-200 dark:border-slate-700 pt-6">
+                        <h3 class="font-bold text-lg text-gray-900 dark:text-gray-100 pb-3 mb-4">
+                            {{ __('Auto-Import Holidays') }}
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+                            Automatically fetch and populate public holidays for a country and year using the public holiday registry.
+                        </p>
+
+                        <form action="{{ route('settings.holidays.import') }}" method="POST" class="space-y-4">
+                            @csrf
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                                    {{ __('Country') }}
+                                </label>
+                                <select name="country" required
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 rounded text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                    <option value="IN" selected>India (IN)</option>
+                                    <option value="US">United States (US)</option>
+                                    <option value="GB">United Kingdom (GB)</option>
+                                    <option value="CA">Canada (CA)</option>
+                                    <option value="AU">Australia (AU)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                                    {{ __('Year') }}
+                                </label>
+                                <select name="year" required
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 rounded text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                    @for($y = date('Y') - 1; $y <= date('Y') + 2; $y++)
+                                        <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+
+                            <button type="submit" class="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm transition ease-in-out duration-150">
+                                {{ __('Fetch & Import Holidays') }}
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
                 <!-- Right: Company Calendar Holidays -->

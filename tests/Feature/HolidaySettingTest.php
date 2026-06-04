@@ -76,4 +76,45 @@ class HolidaySettingTest extends TestCase
             'id' => $holiday->id,
         ]);
     }
+
+    public function test_admin_can_auto_import_holidays(): void
+    {
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+
+        // Fake the HTTP request to the Nager.Date API
+        \Illuminate\Support\Facades\Http::fake([
+            'https://date.nager.at/api/v3/PublicHolidays/*' =>
+                \Illuminate\Support\Facades\Http::response([
+                    [
+                        'date' => '2026-08-15',
+                        'name' => 'Independence Day',
+                    ],
+                    [
+                        'date' => '2026-10-02',
+                        'name' => 'Gandhi Jayanti',
+                    ]
+                ], 200)
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('settings.holidays.import'), [
+            'country' => 'IN',
+            'year' => 2026,
+        ]);
+
+        $response->assertRedirect(route('settings.holidays'));
+        $response->assertSessionHas(
+            'success',
+            'Successfully imported 2 new holidays for IN (2026)!'
+        );
+
+        $this->assertDatabaseHas('public_holidays', [
+            'name' => 'Independence Day',
+            'date' => '2026-08-15 00:00:00',
+        ]);
+
+        $this->assertDatabaseHas('public_holidays', [
+            'name' => 'Gandhi Jayanti',
+            'date' => '2026-10-02 00:00:00',
+        ]);
+    }
 }

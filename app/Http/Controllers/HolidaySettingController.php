@@ -68,4 +68,60 @@ class HolidaySettingController extends Controller
             ->route('settings.holidays')
             ->with('success', 'Company holiday removed successfully.');
     }
+
+    /**
+     * Auto-import holidays from public Nager.Date API.
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'country' => 'required|string|size:2',
+            'year' => 'required|integer|between:2020,2035',
+        ]);
+
+        $country = $request->country;
+        $year = $request->year;
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->get(
+                "https://date.nager.at/api/v3/PublicHolidays/{$year}/{$country}"
+            );
+
+            if ($response->successful()) {
+                $holidays = $response->json();
+                $importedCount = 0;
+
+                foreach ($holidays as $item) {
+                    $date = $item['date'] ?? null;
+                    $name = $item['name'] ?? null;
+
+                    if ($date && $name) {
+                        // Check if holiday already exists for this date
+                        $exists = PublicHoliday::where('date', $date)->exists();
+                        if (!$exists) {
+                            PublicHoliday::create([
+                                'name' => $name,
+                                'date' => $date,
+                            ]);
+                            $importedCount++;
+                        }
+                    }
+                }
+
+                $msg = "Successfully imported {$importedCount} new holidays " .
+                    "for {$country} ({$year})!";
+                return redirect()
+                    ->route('settings.holidays')
+                    ->with('success', $msg);
+            }
+
+            return redirect()
+                ->route('settings.holidays')
+                ->with('error', 'Failed to fetch holidays from the API. Please try again.');
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('settings.holidays')
+                ->with('error', 'Connection to API failed: ' . $e->getMessage());
+        }
+    }
 }

@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
         // Holiday & Weekend Settings
         Route::get('/settings/holidays', [\App\Http\Controllers\HolidaySettingController::class, 'index'])->name('settings.holidays');
         Route::post('/settings/holidays', [\App\Http\Controllers\HolidaySettingController::class, 'store'])->name('settings.holidays.store');
+        Route::post('/settings/holidays/import', [\App\Http\Controllers\HolidaySettingController::class, 'import'])->name('settings.holidays.import');
         Route::post('/settings/week-holidays', [\App\Http\Controllers\HolidaySettingController::class, 'updateWeekHolidays'])->name('settings.week_holidays.update');
         Route::delete('/settings/holidays/{publicHoliday}', [\App\Http\Controllers\HolidaySettingController::class, 'destroy'])->name('settings.holidays.destroy');
     });
