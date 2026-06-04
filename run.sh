@@ -13,7 +13,10 @@ cleanup() {
 # Trap SIGINT (Ctrl+C) and call cleanup
 trap cleanup SIGINT
 
-IP_ADDR="10.50.15.110"
+IP_ADDR=$(hostname -I | awk '{print $1}')
+if [ -z "$IP_ADDR" ]; then
+    IP_ADDR="127.0.0.1"
+fi
 URL="http://$IP_ADDR:8000"
 
 echo "Starting local Redis Server..."
