@@ -16,7 +16,38 @@ class HolidaySettingController extends Controller
         $weekHolidays = Setting::getVal('week_holidays', [0, 6]);
         $publicHolidays = PublicHoliday::orderBy('date')->get();
 
-        return view('settings.holidays', compact('weekHolidays', 'publicHolidays'));
+        $countries = \Illuminate\Support\Facades\Cache::remember(
+            'holidays.countries',
+            86400,
+            function () {
+                try {
+                    $response = \Illuminate\Support\Facades\Http::timeout(5)->get(
+                        'https://date.nager.at/api/v3/AvailableCountries'
+                    );
+                    if ($response->successful()) {
+                        return $response->json();
+                    }
+                } catch (\Exception $e) {
+                    // Fallback to static list on error
+                }
+
+                return [
+                    ['key' => 'IN', 'value' => 'India'],
+                    ['key' => 'US', 'value' => 'United States'],
+                    ['key' => 'GB', 'value' => 'United Kingdom'],
+                    ['key' => 'CA', 'value' => 'Canada'],
+                    ['key' => 'AU', 'value' => 'Australia'],
+                    ['key' => 'DE', 'value' => 'Germany'],
+                    ['key' => 'FR', 'value' => 'France'],
+                    ['key' => 'JP', 'value' => 'Japan'],
+                ];
+            }
+        );
+
+        return view(
+            'settings.holidays',
+            compact('weekHolidays', 'publicHolidays', 'countries')
+        );
     }
 
     /**

@@ -79,11 +79,15 @@
                                 </label>
                                 <select name="country" required
                                         class="w-full border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm text-sm">
-                                    <option value="IN" selected class="dark:bg-slate-900">India (IN)</option>
-                                    <option value="US" class="dark:bg-slate-900">United States (US)</option>
-                                    <option value="GB" class="dark:bg-slate-900">United Kingdom (GB)</option>
-                                    <option value="CA" class="dark:bg-slate-900">Canada (CA)</option>
-                                    <option value="AU" class="dark:bg-slate-900">Australia (AU)</option>
+                                    @foreach($countries as $c)
+                                        @php
+                                            $cKey = $c['key'] ?? '';
+                                            $cValue = $c['value'] ?? '';
+                                        @endphp
+                                        <option value="{{ $cKey }}" {{ $cKey == 'IN' ? 'selected' : '' }} class="dark:bg-slate-900">
+                                            {{ $cValue }} ({{ $cKey }})
+                                        </option>
+                                    @endforeach
                                 </select>
                             </div>
 

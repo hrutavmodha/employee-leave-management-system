@@ -12,6 +12,30 @@ class HolidaySettingTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://date.nager.at/api/v3/AvailableCountries' =>
+                \Illuminate\Support\Facades\Http::response([
+                    ['key' => 'IN', 'value' => 'India'],
+                    ['key' => 'US', 'value' => 'United States'],
+                ], 200),
+            'https://date.nager.at/api/v3/PublicHolidays/*' =>
+                \Illuminate\Support\Facades\Http::response([
+                    [
+                        'date' => '2026-08-15',
+                        'name' => 'Independence Day',
+                    ],
+                    [
+                        'date' => '2026-10-02',
+                        'name' => 'Gandhi Jayanti',
+                    ]
+                ], 200)
+        ]);
+    }
+
     public function test_non_admin_cannot_access_holiday_settings(): void
     {
         $employee = User::factory()->create(['role' => 'Employee']);
@@ -80,21 +104,6 @@ class HolidaySettingTest extends TestCase
     public function test_admin_can_auto_import_holidays(): void
     {
         $admin = User::factory()->create(['role' => 'HR/Admin']);
-
-        // Fake the HTTP request to the Nager.Date API
-        \Illuminate\Support\Facades\Http::fake([
-            'https://date.nager.at/api/v3/PublicHolidays/*' =>
-                \Illuminate\Support\Facades\Http::response([
-                    [
-                        'date' => '2026-08-15',
-                        'name' => 'Independence Day',
-                    ],
-                    [
-                        'date' => '2026-10-02',
-                        'name' => 'Gandhi Jayanti',
-                    ]
-                ], 200)
-        ]);
 
         $response = $this->actingAs($admin)->post(route('settings.holidays.import'), [
             'country' => 'IN',
