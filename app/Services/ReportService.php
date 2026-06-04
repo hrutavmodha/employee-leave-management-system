@@ -144,18 +144,6 @@ class ReportService
     {
         $start = \Carbon\Carbon::parse($req->start_date)->startOfDay();
         $end = \Carbon\Carbon::parse($req->end_date)->startOfDay();
-        $daysRequested = (int) $req->days_requested;
-
-        $startYearMonth = $start->format('Y-m');
-        $endYearMonth = $end->format('Y-m');
-
-        if ($startYearMonth === $endYearMonth) {
-            $year = $start->year;
-            return [
-                'years' => [$year => $daysRequested],
-                'months' => [$startYearMonth => $daysRequested],
-            ];
-        }
 
         $weekHolidays = array_map('intval', \App\Models\Setting::getVal('week_holidays', [0, 6]));
         $publicHolidays = \App\Models\PublicHoliday::whereBetween('date', [
@@ -167,8 +155,10 @@ class ReportService
                 : \Carbon\Carbon::parse($date)->format('Y-m-d');
         })->toArray();
 
-        $calendarDays = [];
-        $totalCalendarWorkingDays = 0;
+        $distribution = [
+            'years' => [],
+            'months' => [],
+        ];
 
         $current = $start->copy();
         while ($current->lte($end)) {
@@ -184,42 +174,13 @@ class ReportService
                 continue;
             }
 
+            $year = $current->year;
             $ym = $current->format('Y-m');
-            $calendarDays[$ym] = ($calendarDays[$ym] ?? 0) + 1;
-            $totalCalendarWorkingDays++;
+
+            $distribution['years'][$year] = ($distribution['years'][$year] ?? 0) + 1;
+            $distribution['months'][$ym] = ($distribution['months'][$ym] ?? 0) + 1;
 
             $current->addDay();
-        }
-
-        $distribution = [
-            'years' => [],
-            'months' => [],
-        ];
-
-        if ($totalCalendarWorkingDays === 0) {
-            $year = $start->year;
-            $distribution['years'][$year] = $daysRequested;
-            $distribution['months'][$startYearMonth] = $daysRequested;
-            return $distribution;
-        }
-
-        $allocatedDays = 0;
-        $monthsList = array_keys($calendarDays);
-        $lastMonth = end($monthsList);
-
-        foreach ($calendarDays as $ym => $calWorkingDays) {
-            list($yr, $mo) = explode('-', $ym);
-            $yr = (int)$yr;
-
-            if ($ym === $lastMonth) {
-                $share = $daysRequested - $allocatedDays;
-            } else {
-                $share = (int) round(($calWorkingDays / $totalCalendarWorkingDays) * $daysRequested);
-                $allocatedDays += $share;
-            }
-
-            $distribution['months'][$ym] = $share;
-            $distribution['years'][$yr] = ($distribution['years'][$yr] ?? 0) + $share;
         }
 
         return $distribution;

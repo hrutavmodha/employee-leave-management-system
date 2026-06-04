@@ -110,12 +110,12 @@ class MonthlyStatsPortabilityTest extends TestCase
 
         $year = date('Y');
 
-        // January: 3 days approved
+        // January: 3 days approved (Mon Jan 12 to Wed Jan 14)
         LeaveRequest::create([
             'user_id' => $user->id,
             'leave_type_id' => $leaveType->id,
-            'start_date' => "{$year}-01-10",
-            'end_date' => "{$year}-01-12",
+            'start_date' => "{$year}-01-12",
+            'end_date' => "{$year}-01-14",
             'days_requested' => 3,
             'reason' => 'Vacation',
             'status' => 'Approved',
