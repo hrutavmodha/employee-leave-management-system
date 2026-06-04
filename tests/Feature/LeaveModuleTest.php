@@ -178,4 +178,93 @@ class LeaveModuleTest extends TestCase
             'days_requested' => 12,
         ]);
     }
+
+    public function test_employee_cannot_apply_for_overlapping_leave_dates()
+    {
+        $user = User::factory()->create();
+        $leaveType = LeaveType::create([
+            'name' => 'Sick Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2026,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        // Pre-create a Pending request
+        \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-10',
+            'end_date' => '2026-06-15',
+            'days_requested' => 6,
+            'reason' => 'Existing leave request',
+            'status' => 'Pending',
+        ]);
+
+        $response = $this->actingAs($user)->post('/leaves', [
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-12',
+            'end_date' => '2026-06-18',
+            'reason' => 'Overlapping request',
+        ]);
+
+        $response->assertSessionHasErrors(['start_date']);
+        $errors = session('errors')->get('start_date');
+        $this->assertStringContainsString(
+            'You already have a pending or approved leave request overlapping with these dates.',
+            $errors[0]
+        );
+    }
+
+    public function test_employee_can_apply_overlapping_dates_if_cancelled()
+    {
+        $user = User::factory()->create();
+        $leaveType = LeaveType::create([
+            'name' => 'Sick Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2026,
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        // Pre-create a Cancelled request
+        \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-10',
+            'end_date' => '2026-06-15',
+            'days_requested' => 6,
+            'reason' => 'Existing leave request',
+            'status' => 'Cancelled',
+        ]);
+
+        $response = $this->actingAs($user)->post('/leaves', [
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-12',
+            'end_date' => '2026-06-18',
+            'reason' => 'Non-overlapping request',
+        ]);
+
+        $response->assertRedirect(route('leaves.index'));
+        $this->assertDatabaseHas('leave_requests', [
+            'user_id' => $user->id,
+            'start_date' => '2026-06-12 00:00:00',
+            'end_date' => '2026-06-18 00:00:00',
+            'status' => 'Pending',
+        ]);
+    }
 }

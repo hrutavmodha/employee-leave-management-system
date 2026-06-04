@@ -57,6 +57,19 @@ class LeaveController extends Controller
         $end = Carbon::parse($request->end_date)->startOfDay();
         $daysRequested = $start->diffInDays($end) + 1;
 
+        $overlapExists = LeaveRequest::where('user_id', Auth::id())
+            ->whereIn('status', ['Pending', 'Approved'])
+            ->where('start_date', '<=', $request->end_date)
+            ->where('end_date', '>=', $request->start_date)
+            ->exists();
+
+        if ($overlapExists) {
+            return back()->withErrors([
+                'start_date' => 'You already have a pending or approved leave request ' .
+                    'overlapping with these dates.'
+            ])->withInput();
+        }
+
         $daysPerYear = $this->calculationService->calculateDaysPerYear($start, $end);
 
         foreach ($daysPerYear as $year => $days) {
