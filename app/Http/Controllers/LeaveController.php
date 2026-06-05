@@ -65,49 +65,70 @@ class LeaveController extends Controller
             ])->withInput();
         }
 
-        $overlapExists = LeaveRequest::where('user_id', Auth::id())
-            ->whereIn('status', ['Pending', 'Approved'])
-            ->where('start_date', '<=', $request->end_date)
-            ->where('end_date', '>=', $request->start_date)
-            ->exists();
+        try {
+            $leaveRequest = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $daysPerYear, $daysRequested) {
+                // Acquire lock on user row to serialize submissions for the user
+                $user = \App\Models\User::where('id', Auth::id())->lockForUpdate()->first();
 
-        if ($overlapExists) {
-            return back()->withErrors([
-                'start_date' => 'You already have a pending or approved leave request ' .
-                    'overlapping with these dates.'
-            ])->withInput();
-        }
+                $overlapExists = LeaveRequest::where('user_id', $user->id)
+                    ->whereIn('status', ['Pending', 'Approved'])
+                    ->where('start_date', '<=', $request->end_date)
+                    ->where('end_date', '>=', $request->start_date)
+                    ->lockForUpdate() // also lock any matching leave requests
+                    ->exists();
 
-        foreach ($daysPerYear as $year => $days) {
-            $balance = $this->calculationService->getOrCreateBalance(
-                Auth::user(),
-                $request->leave_type_id,
-                $year
-            );
+                if ($overlapExists) {
+                    throw new \Exception('OVERLAP_EXISTS');
+                }
 
-            if ($balance->remaining_days < $days) {
-                $msg = "Insufficient balance: You only have {$balance->remaining_days} " .
-                    "days left for the year {$year}, but you requested {$days} days.";
-                return back()->withErrors(['end_date' => $msg])->withInput();
+                foreach ($daysPerYear as $year => $days) {
+                    $balance = $this->calculationService->getOrCreateBalance(
+                        $user,
+                        $request->leave_type_id,
+                        $year
+                    );
+
+                    if ($balance->remaining_days < $days) {
+                        throw new \Exception("INSUFFICIENT_BALANCE:{$year}:{$balance->remaining_days}:{$days}");
+                    }
+                }
+
+                $leaveReq = LeaveRequest::create([
+                    'user_id' => $user->id,
+                    'leave_type_id' => $request->leave_type_id,
+                    'start_date' => $request->start_date,
+                    'end_date' => $request->end_date,
+                    'days_requested' => $daysRequested,
+                    'reason' => $request->reason,
+                    'status' => 'Pending',
+                ]);
+
+                if ($request->hasFile('attachment')) {
+                    $path = $request->file('attachment')->store('attachments', 'local');
+                    $leaveReq->attachments()->create([
+                        'file_name' => $request->file('attachment')->getClientOriginalName(),
+                        'file_path' => $path,
+                    ]);
+                }
+
+                return $leaveReq;
+            });
+        } catch (\Exception $e) {
+            $msg = $e->getMessage();
+            if ($msg === 'OVERLAP_EXISTS') {
+                return back()->withErrors([
+                    'start_date' => 'You already have a pending or approved leave request overlapping with these dates.'
+                ])->withInput();
             }
-        }
 
-        $leaveRequest = LeaveRequest::create([
-            'user_id' => Auth::id(),
-            'leave_type_id' => $request->leave_type_id,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'days_requested' => $daysRequested,
-            'reason' => $request->reason,
-            'status' => 'Pending',
-        ]);
+            if (str_starts_with($msg, 'INSUFFICIENT_BALANCE:')) {
+                list(, $year, $remaining, $requested) = explode(':', $msg);
+                return back()->withErrors([
+                    'end_date' => "Insufficient balance: You only have {$remaining} days left for the year {$year}, but you requested {$requested} days."
+                ])->withInput();
+            }
 
-        if ($request->hasFile('attachment')) {
-            $path = $request->file('attachment')->store('attachments', 'local');
-            $leaveRequest->attachments()->create([
-                'file_name' => $request->file('attachment')->getClientOriginalName(),
-                'file_path' => $path,
-            ]);
+            throw $e;
         }
 
         // Notify direct manager if assigned
