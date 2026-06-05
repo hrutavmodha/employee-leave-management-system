@@ -25,7 +25,7 @@ class ReportService
         return \Illuminate\Support\Facades\Cache::remember("reports.employees.v{$version}.page.{$page}", 3600, function () use ($perPage) {
             $currentYear = (int) date('Y');
 
-            $users = User::select('id', 'name', 'department_id')
+            $users = User::select('id', 'first_name', 'last_name', 'department_id')
                 ->with([
                     'department:id,name',
                     'leaveBalances' => function ($query) use ($currentYear) {

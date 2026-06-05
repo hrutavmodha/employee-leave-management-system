@@ -151,12 +151,22 @@ class LeaveController extends Controller
             ]);
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($leaveRequest) {
-            if ($leaveRequest->status === 'Approved') {
-                $this->calculationService->refundBalance($leaveRequest);
-            }
-            $leaveRequest->update(['status' => 'Cancelled']);
-        });
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($leaveRequest) {
+                // Pessimistic lock to serialize concurrent updates
+                $lockedRequest = LeaveRequest::where('id', $leaveRequest->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedRequest->status === 'Approved') {
+                    $this->calculationService->refundBalance($lockedRequest);
+                } elseif ($lockedRequest->status !== 'Pending') {
+                    throw new \Exception('Only pending or approved requests can be cancelled.');
+                }
+                
+                $lockedRequest->update(['status' => 'Cancelled']);
+            });
+        } catch (\Exception $e) {
+            return redirect()->route('leaves.index')->with('error', 'Cancellation failed: ' . $e->getMessage());
+        }
 
         return redirect()->route('leaves.index')->with('success', 'Leave request cancelled.');
     }

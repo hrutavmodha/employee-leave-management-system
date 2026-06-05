@@ -142,4 +142,117 @@ class AuditCorrectnessGapsTest extends TestCase
         $this->assertEquals(43, $balance2028->allocated_days);
         $this->assertEquals(43, $balance2028->remaining_days);
     }
+
+    /**
+     * Test Correctness Gap 1.2:
+     * Broken Carry-Forward Chain for Skip-Years.
+     */
+    public function test_skip_years_preserves_carry_forward_chain(): void
+    {
+        $user = User::factory()->create([
+            'joining_date' => '2024-01-01',
+        ]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Skip Year Vacation',
+            'allowed_days' => 10,
+            'carry_forward' => true,
+        ]);
+
+        // We initialize balance for year 2026.
+        // The user was created in 2024.
+        // It should initialize 2024, 2025, and 2026 balance records, and correctly cascade the carry-forward.
+        // 2024 allowed: 10
+        // 2025 allowed: 10 + 10 = 20
+        // 2026 allowed: 10 + 20 = 30
+        $calcService = app(\App\Services\LeaveCalculationService::class);
+        $balance2026 = $calcService->getOrCreateBalance($user, $leaveType->id, 2026);
+
+        $this->assertEquals(30, $balance2026->allocated_days);
+        $this->assertEquals(30, $balance2026->remaining_days);
+
+        // Assert database has 2024 and 2025 balances as well
+        $this->assertDatabaseHas('leave_balances', [
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2024,
+            'allocated_days' => 10,
+        ]);
+
+        $this->assertDatabaseHas('leave_balances', [
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2025,
+            'allocated_days' => 20,
+        ]);
+    }
+
+    /**
+     * Test Correctness Gap 1.1:
+     * Concurrency & Race Conditions in Leave Status Transitions.
+     */
+    public function test_cannot_approve_non_pending_leave_request(): void
+    {
+        $manager = User::factory()->create(['role' => 'Manager']);
+        $employee = User::factory()->create(['manager_id' => $manager->id]);
+        $leaveType = LeaveType::create([
+            'name' => 'Sick Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => (int) date('Y'),
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        // Create an Approved request
+        $request = LeaveRequest::create([
+            'user_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'days_requested' => 1,
+            'reason' => 'Sick',
+            'status' => 'Approved',
+        ]);
+
+        // Try to approve it again -> should redirect back with error
+        $response = $this->actingAs($manager)->post("/approvals/{$request->id}/approve", [
+            'manager_comment' => 'Duplicate approval',
+        ]);
+
+        $response->assertRedirect(route('approvals.index'));
+        $response->assertSessionHas('error', 'Only pending leave requests can be approved.');
+    }
+
+    public function test_cannot_cancel_non_pending_or_approved_leave_request(): void
+    {
+        $user = User::factory()->create();
+        $leaveType = LeaveType::create([
+            'name' => 'Sick Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        // Create a Rejected request
+        $request = LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'days_requested' => 1,
+            'reason' => 'Sick',
+            'status' => 'Rejected',
+        ]);
+
+        // Try to cancel a rejected request -> should fail
+        $response = $this->actingAs($user)->post("/leaves/{$request->id}/cancel");
+        $response->assertRedirect(route('leaves.index'));
+        $response->assertSessionHas('error', 'Cancellation failed: Only pending or approved requests can be cancelled.');
+    }
 }

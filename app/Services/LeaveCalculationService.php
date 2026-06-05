@@ -59,22 +59,25 @@ class LeaveCalculationService
      */
     public function getOrCreateBalance(User $user, $leaveTypeId, $year)
     {
-        $balance = LeaveBalance::where('user_id', $user->id)
+        $joiningDate = $user->joining_date ? Carbon::parse($user->joining_date) : Carbon::today();
+        $joiningYear = $joiningDate->year;
+
+        // Chronologically initialize missing balance records to preserve carry-forward chains
+        for ($y = $joiningYear; $y <= $year; $y++) {
+            $balance = LeaveBalance::where('user_id', $user->id)
+                ->where('leave_type_id', $leaveTypeId)
+                ->where('year', $y)
+                ->first();
+
+            if (!$balance) {
+                $this->initializeBalances($user, $y);
+            }
+        }
+
+        return LeaveBalance::where('user_id', $user->id)
             ->where('leave_type_id', $leaveTypeId)
             ->where('year', $year)
             ->first();
-
-        if (!$balance) {
-            // Auto-initialize for the requested year
-            $this->initializeBalances($user, $year);
-            
-            return LeaveBalance::where('user_id', $user->id)
-                ->where('leave_type_id', $leaveTypeId)
-                ->where('year', $year)
-                ->first();
-        }
-
-        return $balance;
     }
 
     /**

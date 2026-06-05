@@ -51,17 +51,21 @@ class ApprovalController extends Controller
     {
         $this->authorizeAction($leaveRequest);
 
-        if ($leaveRequest->status !== 'Pending') {
-            return redirect()->route('approvals.index')->with('error', 'Only pending leave requests can be approved.');
-        }
-
         DB::beginTransaction();
         try {
+            // Pessimistic lock to serialize concurrent status updates
+            $lockedRequest = LeaveRequest::where('id', $leaveRequest->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedRequest->status !== 'Pending') {
+                DB::rollBack();
+                return redirect()->route('approvals.index')->with('error', 'Only pending leave requests can be approved.');
+            }
+
             // Deduct balance
-            $this->calculationService->deductBalance($leaveRequest);
+            $this->calculationService->deductBalance($lockedRequest);
 
             // Update request status
-            $leaveRequest->update([
+            $lockedRequest->update([
                 'status' => 'Approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
@@ -69,7 +73,7 @@ class ApprovalController extends Controller
             ]);
 
             // Notify Employee
-            $leaveRequest->user->notify(new LeaveStatusUpdated($leaveRequest));
+            $lockedRequest->user->notify(new LeaveStatusUpdated($lockedRequest));
 
             DB::commit();
             return redirect()->route('approvals.index')->with('success', 'Leave request approved and employee notified.');
@@ -86,25 +90,36 @@ class ApprovalController extends Controller
     {
         $this->authorizeAction($leaveRequest);
 
-        if ($leaveRequest->status !== 'Pending') {
-            return redirect()->route('approvals.index')->with('error', 'Only pending leave requests can be rejected.');
-        }
-
         $request->validate([
             'manager_comment' => 'nullable|string|max:1000',
         ]);
 
-        $leaveRequest->update([
-            'status' => 'Rejected',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-            'manager_comment' => $request->manager_comment,
-        ]);
+        DB::beginTransaction();
+        try {
+            // Pessimistic lock to serialize concurrent status updates
+            $lockedRequest = LeaveRequest::where('id', $leaveRequest->id)->lockForUpdate()->firstOrFail();
 
-        // Notify Employee
-        $leaveRequest->user->notify(new LeaveStatusUpdated($leaveRequest));
+            if ($lockedRequest->status !== 'Pending') {
+                DB::rollBack();
+                return redirect()->route('approvals.index')->with('error', 'Only pending leave requests can be rejected.');
+            }
 
-        return redirect()->route('approvals.index')->with('success', 'Leave request rejected and employee notified.');
+            $lockedRequest->update([
+                'status' => 'Rejected',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+                'manager_comment' => $request->manager_comment,
+            ]);
+
+            // Notify Employee
+            $lockedRequest->user->notify(new LeaveStatusUpdated($lockedRequest));
+
+            DB::commit();
+            return redirect()->route('approvals.index')->with('success', 'Leave request rejected and employee notified.');
+        } catch (Exception $e) {
+            DB::rollBack();
+            return redirect()->route('approvals.index')->with('error', 'Rejection failed: ' . $e->getMessage());
+        }
     }
 
     protected function authorizeAction(LeaveRequest $request)
