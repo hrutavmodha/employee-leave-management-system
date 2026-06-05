@@ -41,7 +41,7 @@ class LeaveTypeController extends Controller
         LeaveType::create([
             'name' => $request->name,
             'allowed_days' => $request->allowed_days,
-            'carry_forward' => $request->has('carry_forward'),
+            'carry_forward' => $request->boolean('carry_forward'),
             'description' => $request->description,
         ]);
 
@@ -71,7 +71,7 @@ class LeaveTypeController extends Controller
         $leaveType->update([
             'name' => $request->name,
             'allowed_days' => $request->allowed_days,
-            'carry_forward' => $request->has('carry_forward'),
+            'carry_forward' => $request->boolean('carry_forward'),
             'description' => $request->description,
         ]);
 

@@ -19,10 +19,10 @@ class ReportService
         }
 
         $version = \Illuminate\Support\Facades\Cache::remember('reports.employees.version', 3600, function () {
-            return time();
+            return uniqid();
         });
 
-        return \Illuminate\Support\Facades\Cache::remember("reports.employees.v{$version}.page.{$page}", 3600, function () use ($perPage) {
+        return \Illuminate\Support\Facades\Cache::remember("reports.employees.v{$version}.perPage.{$perPage}.page.{$page}", 3600, function () use ($perPage) {
             $currentYear = (int) date('Y');
 
             $users = User::select('id', 'first_name', 'last_name', 'department_id')

@@ -66,6 +66,14 @@ class LeaveCalculationService
      */
     public function getOrCreateBalance(User $user, $leaveTypeId, $year)
     {
+        $balance = LeaveBalance::where('user_id', $user->id)
+            ->where('leave_type_id', $leaveTypeId)
+            ->where('year', $year)
+            ->first();
+        if ($balance) {
+            return $balance;
+        }
+
         $joiningDate = $user->joining_date ? Carbon::parse($user->joining_date) : Carbon::today();
         $joiningYear = $joiningDate->year;
 

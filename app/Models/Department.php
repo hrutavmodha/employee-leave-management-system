@@ -22,6 +22,7 @@ class Department extends Model
         $clearCache = function (Department $department) {
             \Illuminate\Support\Facades\Cache::forget('departments.list');
             \Illuminate\Support\Facades\Cache::forget('reports.departments');
+            \Illuminate\Support\Facades\Cache::forget('reports.employees');
         };
 
         static::saved($clearCache);

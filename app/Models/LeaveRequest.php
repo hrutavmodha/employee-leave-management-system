@@ -82,6 +82,29 @@ class LeaveRequest extends Model
             }
         });
 
+        static::updating(function (LeaveRequest $request) {
+            $dateAttributesChanged = $request->isDirty('start_date')
+                || $request->isDirty('end_date')
+                || $request->isDirty('leave_type_id');
+
+            if ($dateAttributesChanged) {
+                $request->dates()->delete();
+
+                $start = \Carbon\Carbon::parse($request->start_date)->startOfDay();
+                $end = \Carbon\Carbon::parse($request->end_date)->startOfDay();
+                $calcService = app(\App\Services\LeaveCalculationService::class);
+                $workingDays = $calcService->getWorkingDays($start, $end);
+
+                foreach ($workingDays as $date) {
+                    $request->dates()->create([
+                        'date' => $date->toDateString(),
+                        'year' => $date->year,
+                        'month' => $date->format('m'),
+                    ]);
+                }
+            }
+        });
+
         static::updated(function (LeaveRequest $request) {
             if ($request->isDirty('status')) {
                 $oldStatus = $request->getOriginal('status');

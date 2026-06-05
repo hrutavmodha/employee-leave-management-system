@@ -70,8 +70,12 @@ class EmployeeController extends Controller
             'status' => 'Active',
         ]);
 
-        // Automatically initialize leave balances for the new employee
-        $this->calculationService->initializeBalances($user);
+        // Automatically initialize leave balances for the new employee sequentially
+        // from their joining year up to the current year to preserve carry-forward chains.
+        $currentYear = (int) date('Y');
+        foreach (\App\Models\LeaveType::all() as $type) {
+            $this->calculationService->getOrCreateBalance($user, $type->id, $currentYear);
+        }
 
         return redirect()->route('employees.index')->with('success', 'Employee created and leave balances initialized.');
     }

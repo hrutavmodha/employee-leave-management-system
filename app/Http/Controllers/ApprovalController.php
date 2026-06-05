@@ -51,6 +51,8 @@ class ApprovalController extends Controller
     {
         $this->authorizeAction($leaveRequest);
 
+        $committedRequest = null;
+
         DB::beginTransaction();
         try {
             // Pessimistic lock to serialize concurrent status updates
@@ -72,15 +74,20 @@ class ApprovalController extends Controller
                 'manager_comment' => $request->manager_comment,
             ]);
 
-            // Notify Employee
-            $lockedRequest->user->notify(new LeaveStatusUpdated($lockedRequest));
+            $committedRequest = $lockedRequest;
 
             DB::commit();
-            return redirect()->route('approvals.index')->with('success', 'Leave request approved and employee notified.');
         } catch (Exception $e) {
             DB::rollBack();
             return redirect()->route('approvals.index')->with('error', 'Approval failed: ' . $e->getMessage());
         }
+
+        // Notify employee only after a successful commit so that
+        // (a) a mail-server failure cannot roll back the DB write, and
+        // (b) a rolled-back transaction cannot produce a phantom email.
+        $committedRequest->user->notify(new LeaveStatusUpdated($committedRequest));
+
+        return redirect()->route('approvals.index')->with('success', 'Leave request approved and employee notified.');
     }
 
     /**
@@ -93,6 +100,8 @@ class ApprovalController extends Controller
         $request->validate([
             'manager_comment' => 'nullable|string|max:1000',
         ]);
+
+        $committedRequest = null;
 
         DB::beginTransaction();
         try {
@@ -111,15 +120,20 @@ class ApprovalController extends Controller
                 'manager_comment' => $request->manager_comment,
             ]);
 
-            // Notify Employee
-            $lockedRequest->user->notify(new LeaveStatusUpdated($lockedRequest));
+            $committedRequest = $lockedRequest;
 
             DB::commit();
-            return redirect()->route('approvals.index')->with('success', 'Leave request rejected and employee notified.');
         } catch (Exception $e) {
             DB::rollBack();
             return redirect()->route('approvals.index')->with('error', 'Rejection failed: ' . $e->getMessage());
         }
+
+        // Notify employee only after a successful commit so that
+        // (a) a mail-server failure cannot roll back the DB write, and
+        // (b) a rolled-back transaction cannot produce a phantom email.
+        $committedRequest->user->notify(new LeaveStatusUpdated($committedRequest));
+
+        return redirect()->route('approvals.index')->with('success', 'Leave request rejected and employee notified.');
     }
 
     protected function authorizeAction(LeaveRequest $request)

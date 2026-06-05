@@ -340,5 +340,202 @@ class AuditCorrectnessGapsTest extends TestCase
             $this->fail("Duplicate balance initialization threw an exception: " . $e->getMessage());
         }
     }
+
+    /**
+     * Test Boolean Validation and Parsing Bug in Leave Type Carry Forward
+     */
+    public function test_leave_type_carry_forward_boolean_validation(): void
+    {
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+
+        // 1. Test Store with carry_forward = false explicitly
+        $response = $this->actingAs($admin)->post(route('leave-types.store'), [
+            'name' => 'Non-Carry Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false,
+            'description' => 'Should not carry forward',
+        ]);
+
+        $response->assertRedirect(route('leave-types.index'));
+        $leaveType = LeaveType::where('name', 'Non-Carry Leave')->firstOrFail();
+        $this->assertFalse((bool) $leaveType->carry_forward);
+
+        // 2. Test Store with carry_forward = true explicitly
+        $response2 = $this->actingAs($admin)->post(route('leave-types.store'), [
+            'name' => 'Carry Leave',
+            'allowed_days' => 12,
+            'carry_forward' => true,
+            'description' => 'Should carry forward',
+        ]);
+
+        $response2->assertRedirect(route('leave-types.index'));
+        $leaveType2 = LeaveType::where('name', 'Carry Leave')->firstOrFail();
+        $this->assertTrue((bool) $leaveType2->carry_forward);
+
+        // 3. Test Update carry_forward to false
+        $response3 = $this->actingAs($admin)->put(route('leave-types.update', $leaveType2), [
+            'name' => 'Carry Leave Updated',
+            'allowed_days' => 12,
+            'carry_forward' => false,
+            'description' => 'Should no longer carry forward',
+        ]);
+
+        $response3->assertRedirect(route('leave-types.index'));
+        $leaveType2->refresh();
+        $this->assertFalse((bool) $leaveType2->carry_forward);
+    }
+
+    /**
+     * Test Stale Cache Invalidation on Department Rename
+     */
+    public function test_employee_report_cache_invalidated_on_department_rename(): void
+    {
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+        $department = \App\Models\Department::create([
+            'name' => 'Engineering',
+            'description' => 'Devs',
+        ]);
+
+        $employee = User::factory()->create([
+            'department_id' => $department->id,
+        ]);
+
+        $reportService = new ReportService();
+
+        // 1. Prime the employee report cache
+        $reportBefore = $reportService->getEmployeeReport();
+        $employeeBefore = $reportBefore->firstWhere('id', $employee->id);
+        $this->assertNotNull($employeeBefore);
+        $this->assertEquals('Engineering', $employeeBefore->department->name);
+
+        // 2. Rename the department
+        $department->update([
+            'name' => 'Product Engineering',
+        ]);
+
+        // 3. Query the employee report again - it should reflect the new department name
+        $reportAfter = $reportService->getEmployeeReport();
+        $employeeAfter = $reportAfter->firstWhere('id', $employee->id);
+        $this->assertNotNull($employeeAfter);
+        $this->assertEquals('Product Engineering', $employeeAfter->department->name);
+    }
+
+    /**
+     * Test Efficiency Gap E#1:
+     * Database locking and query contention on tenured employee balance requests.
+     */
+    public function test_get_or_create_balance_avoids_looping_and_locks_when_exists(): void
+    {
+        $user = User::factory()->create(['joining_date' => '2015-01-01']);
+        $leaveType = LeaveType::create([
+            'name' => 'Tenure Leave',
+            'allowed_days' => 15,
+            'carry_forward' => true,
+        ]);
+
+        $calcService = app(\App\Services\LeaveCalculationService::class);
+
+        // Pre-initialize balance for the target year
+        $currentYear = (int) date('Y');
+        $calcService->getOrCreateBalance($user, $leaveType->id, $currentYear);
+
+        // Enable query log
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        // Call getOrCreateBalance again - it should find the record immediately
+        $balance = $calcService->getOrCreateBalance($user, $leaveType->id, $currentYear);
+
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
+        // 1. Assert balance is correct
+        $this->assertNotNull($balance);
+
+        // 2. Assert that it did not execute lockForUpdate or transaction queries on User or LeaveBalance
+        // It should only have run exactly 1 query to fetch the existing balance record.
+        $this->assertCount(1, $queries);
+        $this->assertStringContainsString('select', strtolower($queries[0]['query'] ?? ''));
+        $this->assertStringNotContainsString('for update', strtolower($queries[0]['query'] ?? ''));
+    }
+
+    /**
+     * Test Correctness Gap C#1:
+     * Lost Carry-Forward Accruals for New Employees with Historical Joining Dates.
+     */
+    public function test_historical_joining_date_initializes_all_balances_sequentially(): void
+    {
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+        $department = \App\Models\Department::create(['name' => 'Finance', 'description' => 'Finance Dept']);
+        
+        $leaveType = LeaveType::create([
+            'name' => 'Historical Vacation',
+            'allowed_days' => 10,
+            'carry_forward' => true,
+        ]);
+
+        // Register a new employee with a joining date 2 years ago
+        $currentYear = (int) date('Y');
+        $joiningYear = $currentYear - 2;
+        $joiningDate = "{$joiningYear}-06-01";
+
+        $response = $this->actingAs($admin)->post('/employees', [
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'email' => 'john.doe.historical@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role' => 'Employee',
+            'department_id' => $department->id,
+            'designation' => 'Analyst',
+            'joining_date' => $joiningDate,
+        ]);
+
+        $response->assertRedirect(route('employees.index'));
+
+        $employee = User::where('email', 'john.doe.historical@example.com')->firstOrFail();
+
+        // Verify balances exist for all years from joining year to current year
+        for ($y = $joiningYear; $y <= $currentYear; $y++) {
+            $this->assertDatabaseHas('leave_balances', [
+                'user_id' => $employee->id,
+                'leave_type_id' => $leaveType->id,
+                'year' => $y,
+            ]);
+        }
+
+        // Verify the carry-forward cascade rolled over the balances successfully to the current year.
+        // year 1 (joining): 10 allowed, 0 used -> 10 remaining
+        // year 2: 10 allowed + 10 carried over = 20 remaining
+        // year 3 (current): 10 allowed + 20 carried over = 30 remaining
+        $currentBalance = LeaveBalance::where('user_id', $employee->id)
+            ->where('leave_type_id', $leaveType->id)
+            ->where('year', $currentYear)
+            ->firstOrFail();
+
+        $this->assertEquals(30, $currentBalance->allocated_days);
+        $this->assertEquals(30, $currentBalance->remaining_days);
+    }
+
+    /**
+     * Test Correctness Gap C#2:
+     * Caching Pagination Collision in Employee Reports.
+     */
+    public function test_employee_report_cache_does_not_collide_on_different_per_page(): void
+    {
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+        
+        // Create 20 users so we have enough for pagination
+        User::factory()->count(20)->create();
+
+        $reportService = new ReportService();
+
+        // Prime the cache with page size = 5
+        $reportPage5 = $reportService->getEmployeeReport(5);
+        $this->assertCount(5, $reportPage5->items());
+
+        // Request the report with page size = 10 - it should not hit page 5 cache and should return 10 items
+        $reportPage10 = $reportService->getEmployeeReport(10);
+        $this->assertCount(10, $reportPage10->items());
+    }
 }
 

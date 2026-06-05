@@ -144,27 +144,33 @@ class LeaveController extends Controller
     {
         if ($leaveRequest->user_id !== Auth::id()) abort(403);
 
-        $today = Carbon::today();
-        if ($leaveRequest->start_date->lte($today)) {
-            return back()->withErrors([
-                'start_date' => 'You cannot cancel a leave request once the start date has started or passed.'
-            ]);
-        }
-
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use ($leaveRequest) {
-                // Pessimistic lock to serialize concurrent updates
+                // Pessimistic lock to serialize concurrent updates.
+                // All validations run on the locked row to prevent a
+                // TOCTOU race where concurrent cancellations could
+                // double-refund the leave balance.
                 $lockedRequest = LeaveRequest::where('id', $leaveRequest->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedRequest->start_date->lte(Carbon::today())) {
+                    throw new \Exception('CANCEL_DATE_PAST');
+                }
 
                 if ($lockedRequest->status === 'Approved') {
                     $this->calculationService->refundBalance($lockedRequest);
                 } elseif ($lockedRequest->status !== 'Pending') {
                     throw new \Exception('Only pending or approved requests can be cancelled.');
                 }
-                
+
                 $lockedRequest->update(['status' => 'Cancelled']);
             });
         } catch (\Exception $e) {
+            if ($e->getMessage() === 'CANCEL_DATE_PAST') {
+                return back()->withErrors([
+                    'start_date' => 'You cannot cancel a leave request once the start date has started or passed.',
+                ]);
+            }
+
             return redirect()->route('leaves.index')->with('error', 'Cancellation failed: ' . $e->getMessage());
         }
 
