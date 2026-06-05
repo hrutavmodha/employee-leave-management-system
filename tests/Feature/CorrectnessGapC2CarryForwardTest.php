@@ -645,14 +645,16 @@ class CorrectnessGapC2CarryForwardTest extends TestCase
             'remaining_days' => 2,
         ]);
 
+        // Under Correctness Gap 1.3 (Retrospective Negative Balance/Double-Spending)
+        // in REPORT.md, updates driving any subsequent year's remaining balance
+        // below zero must throw an Exception to prevent double-spending.
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Deduction failed: Retrospective balance reduction would drive remaining days for year 2027 below zero");
+
         // Delta: -10 (remaining goes from 15 to 5)
         $balance2026->update([
             'used_days' => 10,
             'remaining_days' => 5,
         ]);
-
-        $balance2027->refresh();
-        $this->assertEquals(20, $balance2027->allocated_days);
-        $this->assertEquals(-8, $balance2027->remaining_days);
     }
 }

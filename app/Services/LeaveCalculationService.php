@@ -43,14 +43,21 @@ class LeaveCalculationService
                 }
             }
 
-            LeaveBalance::create([
-                'user_id' => $user->id,
-                'leave_type_id' => $type->id,
-                'year' => $year,
-                'allocated_days' => $type->allowed_days + $carriedOver,
-                'used_days' => 0,
-                'remaining_days' => $type->allowed_days + $carriedOver,
-            ]);
+            try {
+                LeaveBalance::create([
+                    'user_id' => $user->id,
+                    'leave_type_id' => $type->id,
+                    'year' => $year,
+                    'allocated_days' => $type->allowed_days + $carriedOver,
+                    'used_days' => 0,
+                    'remaining_days' => $type->allowed_days + $carriedOver,
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                if ($e->getCode() === '23000' || str_contains($e->getMessage(), 'Duplicate entry') || str_contains($e->getMessage(), 'unique constraint')) {
+                    continue;
+                }
+                throw $e;
+            }
         }
     }
 
@@ -62,16 +69,21 @@ class LeaveCalculationService
         $joiningDate = $user->joining_date ? Carbon::parse($user->joining_date) : Carbon::today();
         $joiningYear = $joiningDate->year;
 
-        // Chronologically initialize missing balance records to preserve carry-forward chains
+        // Wrap loop in transaction and acquire pessimistic locks to serialize initialization
         for ($y = $joiningYear; $y <= $year; $y++) {
-            $balance = LeaveBalance::where('user_id', $user->id)
-                ->where('leave_type_id', $leaveTypeId)
-                ->where('year', $y)
-                ->first();
+            DB::transaction(function () use ($user, $leaveTypeId, $y) {
+                $lockedUser = User::where('id', $user->id)->lockForUpdate()->firstOrFail();
 
-            if (!$balance) {
-                $this->initializeBalances($user, $y);
-            }
+                $balance = LeaveBalance::where('user_id', $lockedUser->id)
+                    ->where('leave_type_id', $leaveTypeId)
+                    ->where('year', $y)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$balance) {
+                    $this->initializeBalances($lockedUser, $y);
+                }
+            });
         }
 
         return LeaveBalance::where('user_id', $user->id)

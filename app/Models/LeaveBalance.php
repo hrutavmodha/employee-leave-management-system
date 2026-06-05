@@ -49,6 +49,11 @@ class LeaveBalance extends Model
                         ->first();
 
                     if ($nextBalance) {
+                        $newNextRemaining = $nextBalance->remaining_days + $delta;
+                        if ($newNextRemaining < 0) {
+                            throw new \Exception("Deduction failed: Retrospective balance reduction would drive remaining days for year {$nextBalance->year} below zero (to {$newNextRemaining} days).");
+                        }
+
                         $nextBalance->allocated_days += $delta;
                         $nextBalance->remaining_days += $delta;
                         $nextBalance->save();
