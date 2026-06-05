@@ -161,8 +161,8 @@ class ReportPerformanceTest extends TestCase
         LeaveRequest::create([
             'user_id' => $employee->id,
             'leave_type_id' => $leaveType->id,
-            'start_date' => now()->format('Y-m-d'),
-            'end_date' => now()->addDays(1)->format('Y-m-d'),
+            'start_date' => '2026-06-15', // Monday
+            'end_date' => '2026-06-16', // Tuesday
             'days_requested' => 2,
             'status' => 'Approved',
             'reason' => 'Recovery',
@@ -172,8 +172,8 @@ class ReportPerformanceTest extends TestCase
         LeaveRequest::create([
             'user_id' => $employee->id,
             'leave_type_id' => $leaveType->id,
-            'start_date' => now()->addDays(5)->format('Y-m-d'),
-            'end_date' => now()->addDays(7)->format('Y-m-d'),
+            'start_date' => '2026-06-17', // Wednesday
+            'end_date' => '2026-06-19', // Friday
             'days_requested' => 3,
             'status' => 'Rejected',
             'reason' => 'Not urgent',
@@ -183,8 +183,8 @@ class ReportPerformanceTest extends TestCase
         LeaveRequest::create([
             'user_id' => $employee->id,
             'leave_type_id' => $leaveType->id,
-            'start_date' => now()->addDays(10)->format('Y-m-d'),
-            'end_date' => now()->addDays(14)->format('Y-m-d'),
+            'start_date' => '2026-06-22', // Monday
+            'end_date' => '2026-06-26', // Friday
             'days_requested' => 5,
             'status' => 'Pending',
             'reason' => 'Planned vacation',

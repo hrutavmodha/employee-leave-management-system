@@ -14,6 +14,16 @@ class ReportService
         return \Illuminate\Support\Facades\Cache::remember('reports.employees', 3600, function () {
             $currentYear = (int) date('Y');
 
+            // Fetch all approved leave day counts grouped by user in a single query to eliminate N+1
+            $approvedCounts = DB::table('leave_request_dates')
+                ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
+                ->where('leave_requests.status', 'Approved')
+                ->where('leave_request_dates.year', $currentYear)
+                ->selectRaw('leave_requests.user_id, count(*) as count')
+                ->groupBy('leave_requests.user_id')
+                ->pluck('count', 'user_id')
+                ->toArray();
+
             return User::with([
                 'department',
                 'leaveBalances' => function ($query) use ($currentYear) {
@@ -21,15 +31,8 @@ class ReportService
                 }
             ])
             ->get()
-            ->map(function ($user) use ($currentYear) {
-                $approvedLeaves = DB::table('leave_request_dates')
-                    ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
-                    ->where('leave_requests.user_id', $user->id)
-                    ->where('leave_requests.status', 'Approved')
-                    ->where('leave_request_dates.year', $currentYear)
-                    ->count();
-
-                $user->approved_leaves = $approvedLeaves;
+            ->map(function ($user) use ($approvedCounts) {
+                $user->approved_leaves = $approvedCounts[$user->id] ?? 0;
                 return $user;
             });
         });
@@ -43,29 +46,28 @@ class ReportService
         return \Illuminate\Support\Facades\Cache::remember('reports.departments', 3600, function () {
             $currentYear = (int) date('Y');
 
+            // Fetch all leave day counts grouped by department_id and status in a single query to eliminate N+1
+            $leaveStats = DB::table('leave_request_dates')
+                ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
+                ->join('users', 'leave_requests.user_id', '=', 'users.id')
+                ->where('leave_request_dates.year', $currentYear)
+                ->whereIn('leave_requests.status', ['Approved', 'Rejected'])
+                ->selectRaw('users.department_id, leave_requests.status, count(*) as count')
+                ->groupBy('users.department_id', 'leave_requests.status')
+                ->get();
+
+            $statsMap = [];
+            foreach ($leaveStats as $row) {
+                $deptKey = $row->department_id ?? 'unassigned';
+                $statsMap[$deptKey][$row->status] = (int) $row->count;
+            }
+
             $departments = Department::with('users')->get();
 
-            $report = $departments->map(function ($dept) use ($currentYear) {
-                $userIds = $dept->users->pluck('id')->toArray();
-                $totalEmployees = count($userIds);
-                $approvedLeaves = 0;
-                $rejectedLeaves = 0;
-
-                if (!empty($userIds)) {
-                    $approvedLeaves = DB::table('leave_request_dates')
-                        ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
-                        ->whereIn('leave_requests.user_id', $userIds)
-                        ->where('leave_requests.status', 'Approved')
-                        ->where('leave_request_dates.year', $currentYear)
-                        ->count();
-
-                    $rejectedLeaves = DB::table('leave_request_dates')
-                        ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
-                        ->whereIn('leave_requests.user_id', $userIds)
-                        ->where('leave_requests.status', 'Rejected')
-                        ->where('leave_request_dates.year', $currentYear)
-                        ->count();
-                }
+            $report = $departments->map(function ($dept) use ($statsMap) {
+                $totalEmployees = $dept->users->count();
+                $approvedLeaves = $statsMap[$dept->id]['Approved'] ?? 0;
+                $rejectedLeaves = $statsMap[$dept->id]['Rejected'] ?? 0;
 
                 $obj = new \stdClass();
                 $obj->id = $dept->id;
@@ -79,28 +81,16 @@ class ReportService
             });
 
             // Aggregate employees without a department (department_id = null)
-            $unassignedUserIds = User::whereNull('department_id')->pluck('id')->toArray();
+            $unassignedCount = User::whereNull('department_id')->count();
 
-            if (!empty($unassignedUserIds)) {
-                $totalEmployees = count($unassignedUserIds);
-                $approvedLeaves = DB::table('leave_request_dates')
-                    ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
-                    ->whereIn('leave_requests.user_id', $unassignedUserIds)
-                    ->where('leave_requests.status', 'Approved')
-                    ->where('leave_request_dates.year', $currentYear)
-                    ->count();
-
-                $rejectedLeaves = DB::table('leave_request_dates')
-                    ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
-                    ->whereIn('leave_requests.user_id', $unassignedUserIds)
-                    ->where('leave_requests.status', 'Rejected')
-                    ->where('leave_request_dates.year', $currentYear)
-                    ->count();
+            if ($unassignedCount > 0) {
+                $approvedLeaves = $statsMap['unassigned']['Approved'] ?? 0;
+                $rejectedLeaves = $statsMap['unassigned']['Rejected'] ?? 0;
 
                 $obj = new \stdClass();
                 $obj->id = null;
                 $obj->name = 'Unassigned';
-                $obj->total_employees = $totalEmployees;
+                $obj->total_employees = $unassignedCount;
                 $obj->total_leaves = $approvedLeaves;
                 $obj->approved_leaves = $approvedLeaves;
                 $obj->rejected_leaves = $rejectedLeaves;
