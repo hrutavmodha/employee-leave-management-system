@@ -352,4 +352,71 @@ class LeaveModuleTest extends TestCase
 
         $this->assertTrue($hasStatusIndex, 'The status column on the leave_requests table is not indexed.');
     }
+
+    public function test_employee_cannot_cancel_past_or_current_leave_requests(): void
+    {
+        $user = User::factory()->create();
+        $leaveType = LeaveType::create([
+            'name' => 'Sick Leave',
+            'allowed_days' => 10,
+            'carry_forward' => false
+        ]);
+
+        \App\Models\LeaveBalance::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => (int) date('Y'),
+            'allocated_days' => 10,
+            'used_days' => 0,
+            'remaining_days' => 10,
+        ]);
+
+        // 1. Past leave request (yesterday)
+        $pastRequest = \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::yesterday()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::yesterday()->format('Y-m-d'),
+            'days_requested' => 1,
+            'reason' => 'Past leave',
+            'status' => 'Approved',
+        ]);
+
+        $response = $this->actingAs($user)->post("/leaves/{$pastRequest->id}/cancel");
+        $response->assertSessionHasErrors(['start_date']);
+        $pastRequest->refresh();
+        $this->assertEquals('Approved', $pastRequest->status);
+
+        // 2. Current leave request (today)
+        $todayRequest = \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::today()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::today()->format('Y-m-d'),
+            'days_requested' => 1,
+            'reason' => 'Today leave',
+            'status' => 'Approved',
+        ]);
+
+        $response = $this->actingAs($user)->post("/leaves/{$todayRequest->id}/cancel");
+        $response->assertSessionHasErrors(['start_date']);
+        $todayRequest->refresh();
+        $this->assertEquals('Approved', $todayRequest->status);
+
+        // 3. Future leave request (tomorrow)
+        $futureRequest = \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'days_requested' => 1,
+            'reason' => 'Future leave',
+            'status' => 'Approved',
+        ]);
+
+        $response = $this->actingAs($user)->post("/leaves/{$futureRequest->id}/cancel");
+        $response->assertRedirect(route('leaves.index'));
+        $futureRequest->refresh();
+        $this->assertEquals('Cancelled', $futureRequest->status);
+    }
 }

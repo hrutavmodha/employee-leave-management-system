@@ -123,6 +123,13 @@ class LeaveController extends Controller
     {
         if ($leaveRequest->user_id !== Auth::id()) abort(403);
 
+        $today = Carbon::today();
+        if ($leaveRequest->start_date->lte($today)) {
+            return back()->withErrors([
+                'start_date' => 'You cannot cancel a leave request once the start date has started or passed.'
+            ]);
+        }
+
         \Illuminate\Support\Facades\DB::transaction(function () use ($leaveRequest) {
             if ($leaveRequest->status === 'Approved') {
                 $this->calculationService->refundBalance($leaveRequest);
