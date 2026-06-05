@@ -49,6 +49,11 @@ class NewPasswordController extends Controller
                 ])->save();
 
                 event(new PasswordReset($user));
+
+                // Temporarily login to invalidate other active sessions, then logout
+                auth()->login($user);
+                auth()->logoutOtherDevices($request->password);
+                auth()->logout();
             }
         );
 
