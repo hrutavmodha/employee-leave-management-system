@@ -9,14 +9,39 @@ use Illuminate\Support\Facades\DB;
 
 class ReportService
 {
-    public function getEmployeeReport()
+    public function getEmployeeReport($perPage = 15)
     {
-        return \Illuminate\Support\Facades\Cache::remember('reports.employees', 3600, function () {
+        $page = request()->get('page', 1);
+        $hasCache = \Illuminate\Support\Facades\Cache::has('reports.employees');
+        if (!$hasCache) {
+            \Illuminate\Support\Facades\Cache::forget('reports.employees.version');
+            \Illuminate\Support\Facades\Cache::put('reports.employees', true, 3600);
+        }
+
+        $version = \Illuminate\Support\Facades\Cache::remember('reports.employees.version', 3600, function () {
+            return time();
+        });
+
+        return \Illuminate\Support\Facades\Cache::remember("reports.employees.v{$version}.page.{$page}", 3600, function () use ($perPage) {
             $currentYear = (int) date('Y');
 
-            // Fetch all approved leave day counts grouped by user in a single query to eliminate N+1
+            $users = User::select('id', 'name', 'department_id')
+                ->with([
+                    'department:id,name',
+                    'leaveBalances' => function ($query) use ($currentYear) {
+                        $query->select('id', 'user_id', 'leave_type_id', 'remaining_days', 'year')
+                            ->where('year', $currentYear)
+                            ->with('leaveType:id,name');
+                    }
+                ])
+                ->paginate($perPage);
+
+            $userIds = $users->pluck('id')->toArray();
+
+            // Fetch approved leave day counts ONLY for the paginated subset of users
             $approvedCounts = DB::table('leave_request_dates')
                 ->join('leave_requests', 'leave_request_dates.leave_request_id', '=', 'leave_requests.id')
+                ->whereIn('leave_requests.user_id', $userIds)
                 ->where('leave_requests.status', 'Approved')
                 ->where('leave_request_dates.year', $currentYear)
                 ->selectRaw('leave_requests.user_id, count(*) as count')
@@ -24,17 +49,18 @@ class ReportService
                 ->pluck('count', 'user_id')
                 ->toArray();
 
-            return User::with([
-                'department',
-                'leaveBalances' => function ($query) use ($currentYear) {
-                    $query->where('year', $currentYear)->with('leaveType');
-                }
-            ])
-            ->get()
-            ->map(function ($user) use ($approvedCounts) {
+            $users->through(function ($user) use ($approvedCounts) {
                 $user->approved_leaves = $approvedCounts[$user->id] ?? 0;
                 return $user;
             });
+
+            return new CustomPaginator(
+                $users->items(),
+                $users->total(),
+                $users->perPage(),
+                $users->currentPage(),
+                $users->getOptions()
+            );
         });
     }
 
@@ -62,10 +88,11 @@ class ReportService
                 $statsMap[$deptKey][$row->status] = (int) $row->count;
             }
 
-            $departments = Department::with('users')->get();
+            // Use withCount to fetch department employee count without hydrating user models
+            $departments = Department::withCount('users')->get();
 
             $report = $departments->map(function ($dept) use ($statsMap) {
-                $totalEmployees = $dept->users->count();
+                $totalEmployees = $dept->users_count;
                 $approvedLeaves = $statsMap[$dept->id]['Approved'] ?? 0;
                 $rejectedLeaves = $statsMap[$dept->id]['Rejected'] ?? 0;
 
@@ -135,5 +162,13 @@ class ReportService
 
             return collect($stats);
         });
+    }
+}
+
+class CustomPaginator extends \Illuminate\Pagination\LengthAwarePaginator
+{
+    public function firstWhere(...$args)
+    {
+        return $this->getCollection()->firstWhere(...$args);
     }
 }

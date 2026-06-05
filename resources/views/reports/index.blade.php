@@ -41,6 +41,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($employeeStats instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
+                        <div class="mt-4">
+                            {{ $employeeStats->links() }}
+                        </div>
+                    @endif
                 </div>
             </div>
 
