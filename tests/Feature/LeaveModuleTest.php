@@ -419,4 +419,42 @@ class LeaveModuleTest extends TestCase
         $futureRequest->refresh();
         $this->assertEquals('Cancelled', $futureRequest->status);
     }
+
+    public function test_cancelling_leave_request_notifies_manager(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $manager = User::factory()->create(['role' => 'Manager']);
+        $employee = User::factory()->create([
+            'role' => 'Employee',
+            'manager_id' => $manager->id,
+        ]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 20,
+            'carry_forward' => true
+        ]);
+
+        $futureRequest = \App\Models\LeaveRequest::create([
+            'user_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'days_requested' => 1,
+            'reason' => 'Future leave request notification test',
+            'status' => 'Approved',
+        ]);
+
+        $response = $this->actingAs($employee)->post("/leaves/{$futureRequest->id}/cancel");
+        $response->assertRedirect(route('leaves.index'));
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $manager,
+            \App\Notifications\LeaveRequestCancelled::class,
+            function ($notification) use ($employee) {
+                return $notification->leaveRequest->user_id === $employee->id;
+            }
+        );
+    }
 }

@@ -134,4 +134,25 @@ class ProfileTest extends TestCase
         $response->assertStatus(403);
         $this->assertNotNull($user->fresh());
     }
+
+    public function test_profile_update_with_single_word_name_does_not_clear_last_name(): void
+    {
+        $user = User::factory()->create([
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => 'John',
+                'email' => $user->email,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $user->refresh();
+
+        $this->assertSame('John', $user->first_name);
+        $this->assertSame('Doe', $user->last_name);
+    }
 }

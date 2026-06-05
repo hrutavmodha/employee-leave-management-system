@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\LeaveType;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
+use App\Exceptions\InsufficientLeaveBalanceException;
+use App\Exceptions\LeaveBalanceNotFoundException;
 use Exception;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -197,11 +199,14 @@ class LeaveCalculationService
                 ->first();
 
             if (!$balance) {
-                throw new Exception("Leave balance record not found for year {$year}.");
+                throw new LeaveBalanceNotFoundException("Leave balance record not found for year {$year}.");
             }
 
             if ($balance->remaining_days < $days) {
-                throw new Exception(
+                throw new InsufficientLeaveBalanceException(
+                    $year,
+                    $balance->remaining_days,
+                    $days,
                     "Insufficient balance. User has {$balance->remaining_days} " .
                     "days for year {$year}, but requested {$days}."
                 );
@@ -249,7 +254,7 @@ class LeaveCalculationService
                 ->first();
 
             if (!$balance) {
-                throw new Exception("Leave balance record not found for year {$year}.");
+                throw new LeaveBalanceNotFoundException("Leave balance record not found for year {$year}.");
             }
 
             $balance->used_days = max(0, $balance->used_days - $days);

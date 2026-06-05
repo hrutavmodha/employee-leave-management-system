@@ -30,7 +30,7 @@ class LeaveBalance extends Model
     {
         $clearCache = function (LeaveBalance $balance) {
             \Illuminate\Support\Facades\Cache::forget('user.balances.' . $balance->user_id . '.' . $balance->year);
-            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \App\Services\ReportCacheHelper::invalidateEmployeeReportCache();
         };
 
         static::saved($clearCache);
@@ -51,7 +51,7 @@ class LeaveBalance extends Model
                     if ($nextBalance) {
                         $newNextRemaining = $nextBalance->remaining_days + $delta;
                         if ($newNextRemaining < 0) {
-                            throw new \Exception("Deduction failed: Retrospective balance reduction would drive remaining days for year {$nextBalance->year} below zero (to {$newNextRemaining} days).");
+                            throw new \App\Exceptions\RetrospectiveBalanceException("Deduction failed: Retrospective balance reduction would drive remaining days for year {$nextBalance->year} below zero (to {$newNextRemaining} days).");
                         }
 
                         $nextBalance->allocated_days += $delta;

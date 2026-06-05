@@ -56,7 +56,7 @@ class LeaveRequest extends Model
     protected static function booted(): void
     {
         $clearCache = function (LeaveRequest $request) {
-            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \App\Services\ReportCacheHelper::invalidateEmployeeReportCache();
             \Illuminate\Support\Facades\Cache::forget('reports.departments');
             \Illuminate\Support\Facades\Cache::forget('reports.monthly');
         };

@@ -30,9 +30,11 @@ class ProfileController extends Controller
         $user->fill($request->validated());
 
         if ($request->has('name')) {
-            $nameParts = explode(' ', $request->input('name'), 2);
-            $user->first_name = $nameParts[0] ?? '';
-            $user->last_name = $nameParts[1] ?? '';
+            $nameParts = explode(' ', trim($request->input('name')), 2);
+            $user->first_name = $nameParts[0] ?? $user->first_name;
+            if (isset($nameParts[1])) {
+                $user->last_name = $nameParts[1];
+            }
         }
 
         if ($request->hasFile('profile_picture')) {

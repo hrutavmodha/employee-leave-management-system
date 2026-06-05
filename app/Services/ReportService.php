@@ -9,20 +9,26 @@ use Illuminate\Support\Facades\DB;
 
 class ReportService
 {
+    /**
+     * Retrieve a paginated employee report with approved leave counts.
+     *
+     * Uses a version-stamped cache key for atomic invalidation. When the
+     * underlying data changes, the model observers call
+     * `invalidateEmployeeReportCache()` which atomically bumps the version
+     * counter, making all prior versioned keys unreachable. Those orphan
+     * keys expire naturally via their TTL.
+     *
+     * @param int $perPage Number of employees per page.
+     * @return CustomPaginator
+     */
     public function getEmployeeReport($perPage = 15)
     {
         $page = request()->get('page', 1);
-        $hasCache = \Illuminate\Support\Facades\Cache::has('reports.employees');
-        if (!$hasCache) {
-            \Illuminate\Support\Facades\Cache::forget('reports.employees.version');
-            \Illuminate\Support\Facades\Cache::put('reports.employees', true, 3600);
-        }
 
-        $version = \Illuminate\Support\Facades\Cache::remember('reports.employees.version', 3600, function () {
-            return uniqid();
-        });
+        $version = \Illuminate\Support\Facades\Cache::get('reports.employees.version', 1);
+        $cacheKey = "reports.employees.v{$version}.perPage.{$perPage}.page.{$page}";
 
-        return \Illuminate\Support\Facades\Cache::remember("reports.employees.v{$version}.perPage.{$perPage}.page.{$page}", 3600, function () use ($perPage) {
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () use ($perPage) {
             $currentYear = (int) date('Y');
 
             $users = User::select('id', 'first_name', 'last_name', 'department_id')
@@ -63,6 +69,8 @@ class ReportService
             );
         });
     }
+
+
 
     /**
      * Get leave statistics grouped by department.

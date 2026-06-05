@@ -141,7 +141,7 @@ class User extends Authenticatable
     {
         $clearCache = function (User $user) {
             \Illuminate\Support\Facades\Cache::forget('departments.list');
-            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \App\Services\ReportCacheHelper::invalidateEmployeeReportCache();
             \Illuminate\Support\Facades\Cache::forget('reports.departments');
             \Illuminate\Support\Facades\Cache::forget('user.balances.' . $user->id . '.' . date('Y'));
         };

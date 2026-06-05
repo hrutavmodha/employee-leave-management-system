@@ -7,6 +7,8 @@ use App\Models\LeaveType;
 use App\Models\LeaveBalance;
 use App\Services\LeaveCalculationService;
 use App\Notifications\LeaveRequestSubmitted;
+use App\Notifications\LeaveRequestCancelled;
+use App\Exceptions\InsufficientLeaveBalanceException;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -89,7 +91,7 @@ class LeaveController extends Controller
                     );
 
                     if ($balance->remaining_days < $days) {
-                        throw new \Exception("INSUFFICIENT_BALANCE:{$year}:{$balance->remaining_days}:{$days}");
+                        throw new InsufficientLeaveBalanceException($year, $balance->remaining_days, $days);
                     }
                 }
 
@@ -113,18 +115,15 @@ class LeaveController extends Controller
 
                 return $leaveReq;
             });
+        } catch (InsufficientLeaveBalanceException $e) {
+            return back()->withErrors([
+                'end_date' => "Insufficient balance: You only have {$e->getRemainingDays()} days left for the year {$e->getYear()}, but you requested {$e->getRequestedDays()} days."
+            ])->withInput();
         } catch (\Exception $e) {
             $msg = $e->getMessage();
             if ($msg === 'OVERLAP_EXISTS') {
                 return back()->withErrors([
                     'start_date' => 'You already have a pending or approved leave request overlapping with these dates.'
-                ])->withInput();
-            }
-
-            if (str_starts_with($msg, 'INSUFFICIENT_BALANCE:')) {
-                list(, $year, $remaining, $requested) = explode(':', $msg);
-                return back()->withErrors([
-                    'end_date' => "Insufficient balance: You only have {$remaining} days left for the year {$year}, but you requested {$requested} days."
                 ])->withInput();
             }
 
@@ -172,6 +171,12 @@ class LeaveController extends Controller
             }
 
             return redirect()->route('leaves.index')->with('error', 'Cancellation failed: ' . $e->getMessage());
+        }
+
+        // Notify direct manager if assigned
+        $employee = $leaveRequest->user;
+        if ($employee->manager) {
+            $employee->manager->notify(new LeaveRequestCancelled($leaveRequest));
         }
 
         return redirect()->route('leaves.index')->with('success', 'Leave request cancelled.');

@@ -18,7 +18,7 @@ class PublicHoliday extends Model
     protected static function booted()
     {
         $clearCache = function () {
-            \Illuminate\Support\Facades\Cache::forget('reports.employees');
+            \App\Services\ReportCacheHelper::invalidateEmployeeReportCache();
             \Illuminate\Support\Facades\Cache::forget('reports.departments');
             \Illuminate\Support\Facades\Cache::forget('reports.monthly');
         };
