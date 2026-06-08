@@ -69,8 +69,29 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
    ```
 
 3. **Environment Setup:**
-   - Copy `.env.example` to `.env` and run `php artisan key:generate`.
-   - **Real Emails:** To receive actual notifications, set `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=465`, and `MAIL_ENCRYPTION=ssl` in your `.env` file using a Google App Password.
+   - **Run the Commands:**
+     ```bash
+     cp .env.example .env
+     php artisan key:generate
+     ```
+     These commands will duplicate the template environment configuration file (`.env.example`) to create your local active environment configuration file (`.env`), and then generate a secure, unique 32-character application encryption key (`APP_KEY`) to encrypt user sessions and other sensitive data.
+   - **Redis Configuration:** Update the following keys in your `.env` file to utilize the local Redis server for session management, queueing, and caching:
+     ```env
+     SESSION_DRIVER=redis
+     QUEUE_CONNECTION=redis
+     CACHE_STORE=redis
+     REDIS_CLIENT=predis
+     REDIS_HOST=127.0.0.1
+     REDIS_PORT=6379
+     ```
+     > [!NOTE]
+     > **Why a Local Redis Build?**
+     > Rather than relying on a globally installed `redis-server` binary, this repository ships with a compiled local Redis build under `redis-local/`. This approach ensures:
+     > 1. **Zero-Dependency Portability:** No need for system-level installation via `apt`, `brew`, or other package managers, which typically require root/sudo access.
+     > 2. **No Port/Configuration Conflicts:** Isolates the project database/cache from any other Redis instances running on the host machine.
+     > 3. **No C-Extension Requirements:** Setting `REDIS_CLIENT=predis` makes Laravel use the bundled `predis/predis` Composer library. This avoids the requirement of compiling/installing the native PHP `phpredis` C-extension on the host machine.
+   - To receive actual notifications, set `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=465`, and `MAIL_ENCRYPTION=ssl` in your `.env` file using a Google App Password.
+
 
 4. **Database Initialization:**
    ```bash
@@ -82,7 +103,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
    ```bash
    ./run.sh
    ```
-   *(Automatically starts Backend & Frontend servers and opens the application in your default browser at the local network IP for responsiveness testing.)*
+   * Automatically starts Backend & Frontend servers and opens the application in your default browser at the local network IP for responsiveness testing.
 
 ---
 
