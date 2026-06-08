@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\LeaveType;
+use App\Models\LeaveRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -456,5 +457,94 @@ class LeaveModuleTest extends TestCase
                 return $notification->leaveRequest->user_id === $employee->id;
             }
         );
+    }
+
+    /**
+     * Test that an employee with a future joining date cannot submit a leave request starting before that date.
+     *
+     * @return void
+     */
+    public function test_employee_cannot_apply_for_leave_before_joining_date(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'Employee',
+            'joining_date' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+        ]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 20,
+            'carry_forward' => true
+        ]);
+
+        $response = $this->actingAs($user)->post('/leaves', [
+            'leave_type_id' => $leaveType->id,
+            'start_date' => \Carbon\Carbon::today()->format('Y-m-d'),
+            'end_date' => \Carbon\Carbon::today()->format('Y-m-d'),
+            'reason' => 'Leave before starting',
+        ]);
+
+        $response->assertSessionHasErrors(['start_date']);
+    }
+
+    /**
+     * Test that getOrCreateBalance returns a zeroed balance if the requested year is before the joining year.
+     *
+     * @return void
+     */
+    public function test_get_or_create_balance_returns_zeroed_balance_before_joining_year(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'Employee',
+            'joining_date' => '2027-01-01',
+        ]);
+
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 20,
+            'carry_forward' => true
+        ]);
+
+        $calcService = app(\App\Services\LeaveCalculationService::class);
+        $balance = $calcService->getOrCreateBalance($user, $leaveType->id, 2026);
+
+        $this->assertNotNull($balance);
+        $this->assertEquals(0, $balance->allocated_days);
+        $this->assertEquals(0, $balance->remaining_days);
+        $this->assertFalse($balance->exists);
+    }
+
+    /**
+     * Test that updating a leave request's dates updates the days_requested attribute correctly.
+     *
+     * @return void
+     */
+    public function test_updating_leave_request_dates_recalculates_days_requested(): void
+    {
+        $user = User::factory()->create(['role' => 'Employee']);
+        $leaveType = LeaveType::create([
+            'name' => 'Annual Leave',
+            'allowed_days' => 20,
+            'carry_forward' => true
+        ]);
+
+        $request = \App\Models\LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-06-08',
+            'end_date' => '2026-06-08',
+            'days_requested' => 1,
+            'reason' => 'Short leave',
+            'status' => 'Pending',
+        ]);
+
+        $this->assertEquals(1, $request->days_requested);
+
+        $request->update([
+            'end_date' => '2026-06-10',
+        ]);
+
+        $request->refresh();
+        $this->assertEquals(3, $request->days_requested);
     }
 }

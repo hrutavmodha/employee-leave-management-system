@@ -41,12 +41,14 @@ class LeaveType extends Model
 
         static::saved(function (LeaveType $leaveType) use ($clearCache, $logChange) {
             $clearCache($leaveType);
+            \App\Services\ReportCacheHelper::invalidateEmployeeReportCache();
             $action = $leaveType->wasRecentlyCreated ? 'created' : 'updated';
             $logChange($leaveType, $action);
         });
 
         static::deleted(function (LeaveType $leaveType) use ($clearCache, $logChange) {
             $clearCache($leaveType);
+            \App\Services\ReportCacheHelper::invalidateEmployeeReportCache();
             $logChange($leaveType, 'deleted');
         });
     }

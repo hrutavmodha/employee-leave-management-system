@@ -7,6 +7,7 @@ cleanup() {
     kill $SERVE_PID
     kill $VITE_PID
     kill $REDIS_PID
+    kill $QUEUE_PID
     exit
 }
 
@@ -30,6 +31,10 @@ SERVE_PID=$!
 echo "Starting Vite Development Server (Frontend)..."
 npm run dev -- --host &
 VITE_PID=$!
+
+echo "Starting Laravel Queue Listener..."
+php artisan queue:listen --tries=1 --timeout=0 &
+QUEUE_PID=$!
 
 # Small delay to let servers start
 sleep 2

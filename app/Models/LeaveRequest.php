@@ -95,6 +95,9 @@ class LeaveRequest extends Model
                 $calcService = app(\App\Services\LeaveCalculationService::class);
                 $workingDays = $calcService->getWorkingDays($start, $end);
 
+                // Update the days_requested attribute on the model so it gets persisted
+                $request->days_requested = count($workingDays);
+
                 foreach ($workingDays as $date) {
                     $request->dates()->create([
                         'date' => $date->toDateString(),

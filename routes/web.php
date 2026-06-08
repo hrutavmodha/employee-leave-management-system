@@ -13,6 +13,9 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasTable('leave_request_dates')) {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    }
     $user = Auth::user();
     $currentYear = date('Y');
     

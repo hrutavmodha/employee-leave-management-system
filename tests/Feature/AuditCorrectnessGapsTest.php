@@ -537,5 +537,48 @@ class AuditCorrectnessGapsTest extends TestCase
         $reportPage10 = $reportService->getEmployeeReport(10);
         $this->assertCount(10, $reportPage10->items());
     }
+
+    /**
+     * Test that employee report cache is invalidated when a leave type is updated.
+     *
+     * @return void
+     */
+    public function test_employee_report_cache_invalidated_on_leave_type_update(): void
+    {
+        $admin = User::factory()->create(['role' => 'HR/Admin']);
+        $employee = User::factory()->create();
+
+        $leaveType = LeaveType::create([
+            'name' => 'Original Leave Type',
+            'allowed_days' => 20,
+            'carry_forward' => true
+        ]);
+
+        $calcService = app(\App\Services\LeaveCalculationService::class);
+        $calcService->getOrCreateBalance($employee, $leaveType->id, (int) date('Y'));
+
+        $reportService = new ReportService();
+
+        // 1. Prime the employee report cache
+        $reportBefore = $reportService->getEmployeeReport();
+        $employeeBefore = $reportBefore->firstWhere('id', $employee->id);
+        $this->assertNotNull($employeeBefore);
+        $balanceBefore = $employeeBefore->leaveBalances->firstWhere('leave_type_id', $leaveType->id);
+        $this->assertNotNull($balanceBefore);
+        $this->assertEquals('Original Leave Type', $balanceBefore->leaveType->name);
+
+        // 2. Update the leave type name
+        $leaveType->update([
+            'name' => 'Updated Leave Type',
+        ]);
+
+        // 3. Query the employee report again - it should reflect the new leave type name
+        $reportAfter = $reportService->getEmployeeReport();
+        $employeeAfter = $reportAfter->firstWhere('id', $employee->id);
+        $this->assertNotNull($employeeAfter);
+        $balanceAfter = $employeeAfter->leaveBalances->firstWhere('leave_type_id', $leaveType->id);
+        $this->assertNotNull($balanceAfter);
+        $this->assertEquals('Updated Leave Type', $balanceAfter->leaveType->name);
+    }
 }
 

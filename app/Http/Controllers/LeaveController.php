@@ -48,13 +48,26 @@ class LeaveController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $user = Auth::user();
+        $joiningDateString = $user->joining_date ? $user->joining_date->format('Y-m-d') : null;
+
+        $rules = [
             'leave_type_id' => 'required|exists:leave_types,id',
-            'start_date' => 'required|date|after_or_equal:today',
+            'start_date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+            ],
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string|max:1000',
             'attachment' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
-        ]);
+        ];
+
+        if ($joiningDateString) {
+            $rules['start_date'][] = 'after_or_equal:' . $joiningDateString;
+        }
+
+        $request->validate($rules);
 
         $start = Carbon::parse($request->start_date)->startOfDay();
         $end = Carbon::parse($request->end_date)->startOfDay();

@@ -65,6 +65,9 @@ class LeaveCalculationService
 
     /**
      * Get balance for a specific type and year, auto-initializing if missing.
+     *
+     * Handles cases where the requested year is prior to the user's joining year
+     * by returning an unsaved, zeroed LeaveBalance instance.
      */
     public function getOrCreateBalance(User $user, $leaveTypeId, $year)
     {
@@ -78,6 +81,17 @@ class LeaveCalculationService
 
         $joiningDate = $user->joining_date ? Carbon::parse($user->joining_date) : Carbon::today();
         $joiningYear = $joiningDate->year;
+
+        if ($year < $joiningYear) {
+            return new LeaveBalance([
+                'user_id' => $user->id,
+                'leave_type_id' => $leaveTypeId,
+                'year' => $year,
+                'allocated_days' => 0,
+                'used_days' => 0,
+                'remaining_days' => 0,
+            ]);
+        }
 
         // Wrap loop in transaction and acquire pessimistic locks to serialize initialization
         for ($y = $joiningYear; $y <= $year; $y++) {
