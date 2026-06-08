@@ -84,14 +84,14 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
      REDIS_HOST=127.0.0.1
      REDIS_PORT=6379
      ```
-     > [!NOTE]
-     > **Why a Local Redis Build?**
-     > Rather than relying on a globally installed `redis-server` binary, this repository ships with a compiled local Redis build under `redis-local/`. This approach ensures:
-     > 1. **Zero-Dependency Portability:** No need for system-level installation via `apt`, `brew`, or other package managers, which typically require root/sudo access.
-     > 2. **No Port/Configuration Conflicts:** Isolates the project database/cache from any other Redis instances running on the host machine.
-     > 3. **No C-Extension Requirements:** Setting `REDIS_CLIENT=predis` makes Laravel use the bundled `predis/predis` Composer library. This avoids the requirement of compiling/installing the native PHP `phpredis` C-extension on the host machine.
    - To receive actual notifications, set `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=465`, and `MAIL_ENCRYPTION=ssl` in your `.env` file using a Google App Password.
 
+> [!NOTE]
+> **Why a Local Redis Build?**
+> Rather than relying on a globally installed `redis-server` binary, this repository ships with a compiled local Redis build under `redis-local/`. This approach ensures:
+> 1. **Zero-Dependency Portability:** No need for system-level installation via `apt`, `brew`, or other package managers, which typically require root/sudo access.
+> 2. **No Port/Configuration Conflicts:** Isolates the project database/cache from any other Redis instances running on the host machine.
+> 3. **No C-Extension Requirements:** Setting `REDIS_CLIENT=predis` makes Laravel use the bundled `predis/predis` Composer library. This avoids the requirement of compiling/installing the native PHP `phpredis` C-extension on the host machine.
 
 4. **Database Initialization:**
    ```bash
