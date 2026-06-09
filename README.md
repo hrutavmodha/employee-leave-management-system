@@ -41,7 +41,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 
 - **Backend:** PHP 8.2+ / Laravel 12 (latest)
 - **Frontend:** Blade Templating Engine / Tailwind CSS / Alpine.js
-- **Database:** SQLite (Single-file portability)
+- **Database:** PostgreSQL
 - **Asset Bundling:** Vite 7.x
 - **Architecture:** Service Pattern (Calculation & Reporting layers)
 - **Tooling:** Artisan CLI / Composer / npm
@@ -54,6 +54,8 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
 - PHP 8.2 or higher
 - Composer
 - Node.js & npm
+- PostgreSQL
+- Redis Server
 
 ### Steps
 1. **Clone the repository:**
@@ -75,7 +77,7 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
      php artisan key:generate
      ```
      These commands will duplicate the template environment configuration file (`.env.example`) to create your local active environment configuration file (`.env`), and then generate a secure, unique 32-character application encryption key (`APP_KEY`) to encrypt user sessions and other sensitive data.
-   - **Redis Configuration:** Update the following keys in your `.env` file to utilize the local Redis server for session management, queueing, and caching:
+   - **Redis Configuration:** Update the following keys in your `.env` file to utilize the Redis server for session management, queueing, and caching:
      ```env
      SESSION_DRIVER=redis
      QUEUE_CONNECTION=redis
@@ -86,16 +88,9 @@ A robust, enterprise-grade web application built with **Laravel 12** to automate
      ```
    - To receive actual notifications, set `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=465`, and `MAIL_ENCRYPTION=ssl` in your `.env` file using a Google App Password.
 
-> [!NOTE]
-> **Why a Local Redis Build?**
-> Rather than relying on a globally installed `redis-server` binary, this repository ships with a compiled local Redis build under `redis-local/`. This approach ensures:
-> 1. **Zero-Dependency Portability:** No need for system-level installation via `apt`, `brew`, or other package managers, which typically require root/sudo access.
-> 2. **No Port/Configuration Conflicts:** Isolates the project database/cache from any other Redis instances running on the host machine.
-> 3. **No C-Extension Requirements:** Setting `REDIS_CLIENT=predis` makes Laravel use the bundled `predis/predis` Composer library. This avoids the requirement of compiling/installing the native PHP `phpredis` C-extension on the host machine.
-
 4. **Database Initialization:**
    ```bash
-   touch database/database.sqlite
+   psql -U postgres -c "CREATE DATABASE laravel;"
    php artisan migrate --seed
    ```
 
