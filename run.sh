@@ -20,8 +20,8 @@ if [ -z "$IP_ADDR" ]; then
 fi
 URL="http://$IP_ADDR:8000"
 
-echo "Starting local Redis Server..."
-./redis-local/redis-stable/src/redis-server ./redis-local/redis-stable/redis.conf &
+echo "Starting Redis Server..."
+redis-server &
 REDIS_PID=$!
 
 echo "Starting Laravel Development Server (Backend)..."
